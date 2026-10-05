@@ -1,0 +1,32 @@
+name: Simulate
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  sim:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends iverilog verilator
+
+      - name: Lint
+        run: make lint
+
+      - name: Simulate
+        run: make sim
+
+      - name: Upload waveform and log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sim-results
+          path: |
+            sim/dump.vcd
+            sim/sim.log
+          retention-days: 7
