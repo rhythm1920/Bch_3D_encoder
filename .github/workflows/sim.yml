@@ -10,10 +10,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install tools
+      - name: Setup OSS CAD Suite
+        uses: YosysHQ/setup-oss-cad-suite@v3
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Show tool versions
         run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends iverilog verilator
+          verilator --version
+          yosys -V
 
       - name: Lint
         run: make lint

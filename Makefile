@@ -1,4 +1,4 @@
-RTL := $(wildcard rtl/*.v)
+RTL := $(shell find rtl -name '*.v' -o -name '*.sv')
 TB  := tb/top_tb.v
 
 lint:
@@ -6,8 +6,9 @@ lint:
 
 sim:
 	mkdir -p sim
-	iverilog -g2012 -Wall -o sim/top_tb.vvp $(RTL) $(TB)
-	cd sim && vvp top_tb.vvp | tee sim.log
+	verilator --binary --timing --trace -Wall -Wno-fatal \
+	    --top-module top_tb -Mdir sim/obj_dir -o top_tb $(RTL) $(TB)
+	cd sim && ./obj_dir/top_tb | tee sim.log
 	@grep -q "PASS" sim/sim.log && ! grep -q "FAIL" sim/sim.log
 
 clean:
