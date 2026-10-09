@@ -1,19 +1,22 @@
 `timescale 1ns/1ps
 module top_tb;
-  reg clk = 0, rst = 1;
+  reg clk, rst;
   wire [3:0] q;
-  integer errors = 0;
+  integer errors;
 
   counter dut (.clk(clk), .rst(rst), .q(q));
 
+  initial clk = 0;
   always #5 clk = ~clk;
 
   initial begin
+    errors = 0;
+    rst = 1;
     $dumpfile("dump.vcd");
     $dumpvars(0, top_tb);
 
     repeat (2) @(posedge clk);
-    rst = 0;
+    #1 rst = 0;
 
     repeat (5) @(posedge clk);
     #1;
