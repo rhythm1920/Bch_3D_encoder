@@ -8,3 +8,5 @@ module counter (
     else     q <= q + 4'd1;
   end
 endmodule
+
+
