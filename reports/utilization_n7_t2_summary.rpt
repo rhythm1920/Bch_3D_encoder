@@ -1,0 +1,20 @@
+Copyright 1986-2022 Xilinx, Inc. All Rights Reserved. Copyright 2022-2026 Advanced Micro Devices, Inc. All Rights Reserved.
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+| Tool Version : Vivado v.2026.1 (win64) Build 6511674 Tue Jun 16 11:02:23 MDT 2026
+| Date         : Mon Oct 26 03:42:28 2026
+| Host         : Shantanu running 64-bit major release  (build 9200)
+| Design       : bch3d_enc_opt_n7_t2 / bch3d_enc_baseline_n7_t2
+| Device       : xc7v2000tflg1925-1
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Summary of N=7, T=2 Vivado 2026.1 OOC Synthesis (xc7v2000tflg1925-1):
+
+1. flatten_hierarchy = none
+   - bch3d_enc_baseline_n7_t2 : 8,135 Slice LUTs (8,135 LUT primitives: 7,673 LUT6, 313 LUT5, 69 LUT4, 80 LUT3)
+   - bch3d_enc_opt_n7_t2      : 4,938 Slice LUTs (5,074 LUT primitives: 4,116 LUT6, 686 LUT5, 68 LUT3, 204 LUT2)
+   - LUT Reduction            : 3,197 Slice LUTs saved (-39.30%)
+
+2. flatten_hierarchy = rebuilt (post-synthesis functional simulation verified: 227/227 vectors PASS)
+   - bch3d_enc_baseline_n7_t2 : 2,909 Slice LUTs (3,451 LUT primitives: 2,146 LUT6, 428 LUT5, 310 LUT4, 344 LUT3, 223 LUT2)
+   - bch3d_enc_opt_n7_t2      : 2,348 Slice LUTs (2,872 LUT primitives: 1,714 LUT6, 49 LUT5, 256 LUT4, 210 LUT3, 643 LUT2)
+   - LUT Reduction            : 561 Slice LUTs saved (-19.28%)

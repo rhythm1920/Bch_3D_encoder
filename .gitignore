@@ -2,3 +2,8 @@ sim/
 build/
 *.vvp
 obj_dir/
+__pycache__/
+*.pyc
+*.log
+*.jou
+xsim.dir/

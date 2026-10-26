@@ -1,0 +1,43 @@
+Copyright 1986-2022 Xilinx, Inc. All Rights Reserved. Copyright 2022-2026 Advanced Micro Devices, Inc. All Rights Reserved.
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+| Tool Version : Vivado v.2026.1 (win64) Build 6511674 Tue Jun 16 11:02:23 MDT 2026
+| Date         : Mon Oct 26 04:26:27 2026
+| Host         : Shantanu running 64-bit major release  (build 9200)
+| Command      : report_utilization -file utilization_bch3d_enc_baseline_none.rpt
+| Design       : bch3d_enc_baseline
+| Device       : xc7v2000tflg1925-1
+| Speed File   : -1
+| Design State : Synthesized
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Utilization Design Information
+
+1. Slice Logic
+--------------
+
++-------------------------+---------+-------+------------+-----------+-------+
+|        Site Type        |   Used  | Fixed | Prohibited | Available | Util% |
++-------------------------+---------+-------+------------+-----------+-------+
+| Slice LUTs*             | 1156681 |     0 |          0 |   1221600 | 94.69 |
+|   LUT as Logic          | 1156681 |     0 |          0 |   1221600 | 94.69 |
+|   LUT as Memory         |       0 |     0 |          0 |    344800 |  0.00 |
+| Slice Registers         |       0 |     0 |          0 |   2443200 |  0.00 |
+|   Register as Flip Flop |       0 |     0 |          0 |   2443200 |  0.00 |
+|   Register as Latch     |       0 |     0 |          0 |   2443200 |  0.00 |
+| F7 Muxes                |       0 |     0 |          0 |    610800 |  0.00 |
+| F8 Muxes                |       0 |     0 |          0 |    305400 |  0.00 |
+| Unique Control Sets     |       0 |       |          0 |    305400 |  0.00 |
++-------------------------+---------+-------+------------+-----------+-------+
+
+7. Primitives
+-------------
+
++----------+---------+---------------------+
+| Ref Name |   Used  | Functional Category |
++----------+---------+---------------------+
+| LUT6     | 1126396 |                 LUT |
+| LUT5     |   19333 |                 LUT |
+| LUT3     |    7336 |                 LUT |
+| LUT4     |    3613 |                 LUT |
+| LUT2     |       3 |                 LUT |
++----------+---------+---------------------+

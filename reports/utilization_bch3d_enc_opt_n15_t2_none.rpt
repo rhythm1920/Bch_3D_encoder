@@ -1,0 +1,55 @@
+Copyright 1986-2022 Xilinx, Inc. All Rights Reserved. Copyright 2022-2026 Advanced Micro Devices, Inc. All Rights Reserved.
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+| Tool Version : Vivado v.2026.1 (win64) Build 6511674 Tue Jun 16 11:02:23 MDT 2026
+| Date         : Mon Oct 26 03:38:16 2026
+| Host         : Shantanu running 64-bit major release  (build 9200)
+| Command      : report_utilization -file utilization_bch3d_enc_opt_none.rpt
+| Design       : bch3d_enc_opt
+| Device       : xc7v2000tflg1925-1
+| Speed File   : -1
+| Design State : Synthesized
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Utilization Design Information
+
+1. Slice Logic
+--------------
+
++-------------------------+--------+-------+------------+-----------+-------+
+|        Site Type        |  Used  | Fixed | Prohibited | Available | Util% |
++-------------------------+--------+-------+------------+-----------+-------+
+| Slice LUTs*             | 544597 |     0 |          0 |   1221600 | 44.58 |
+|   LUT as Logic          | 544597 |     0 |          0 |   1221600 | 44.58 |
+|   LUT as Memory         |      0 |     0 |          0 |    344800 |  0.00 |
+| Slice Registers         |      0 |     0 |          0 |   2443200 |  0.00 |
+|   Register as Flip Flop |      0 |     0 |          0 |   2443200 |  0.00 |
+|   Register as Latch     |      0 |     0 |          0 |   2443200 |  0.00 |
+| F7 Muxes                |      0 |     0 |          0 |    610800 |  0.00 |
+| F8 Muxes                |      0 |     0 |          0 |    305400 |  0.00 |
+| Unique Control Sets     |      0 |       |          0 |    305400 |  0.00 |
++-------------------------+--------+-------+------------+-----------+-------+
+
+7. Primitives
+-------------
+
++----------+--------+---------------------+
+| Ref Name |  Used  | Functional Category |
++----------+--------+---------------------+
+| LUT6     | 533250 |                 LUT |
+| LUT2     |   4567 |                 LUT |
+| LUT4     |   4129 |                 LUT |
+| LUT5     |   3375 |                 LUT |
+| LUT3     |   3106 |                 LUT |
++----------+--------+---------------------+
+
+Utilization by Hierarchy Summary
+--------------------------------
+
++-------------------+-----------------------+------------+------------+
+|      Instance     |         Module        | Total LUTs | Logic LUTs |
++-------------------+-----------------------+------------+------------+
+| bch3d_enc_opt     |                 (top) |     544597 |     544597 |
+|   u_submsg        |   bch3d_msg_to_submsg |          0 |          0 |
+|   u_mul_bank      | bch3d_mul_bank_n15_t2 |       4597 |       4597 |
+|   u_xor_p0..p3374 | 3375 x bch3d_xor_tree |     540000 |     540000 |
++-------------------+-----------------------+------------+------------+

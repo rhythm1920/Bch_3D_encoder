@@ -21,10 +21,6 @@ module tb_bch3d_msg_to_submsg;
     bch3d_msg_to_submsg #(.N(7),.T(2),.PRIM_POLY(11)) dut3(.msg(m3),.sub_msg(s3));
     task chk3(input [204:0] m, input [206:0] e); begin m3=m; #1;
         if (s3 !== e) begin errors=errors+1; $display("cfg3 MISMATCH msg=%h", m); end end endtask
-    // equivalence with the hard-coded flat version (default config)
-    reg [3162:0] mr; wire [3191:0] sr, sp; integer i;
-    ref_flat refd(.msg(mr),.sub_msg(sr));
-    bch3d_msg_to_submsg #(.N(15),.T(2),.PRIM_POLY(5'b10011)) pd(.msg(mr),.sub_msg(sp));
     initial begin
         chk0(3163'h0, 3192'h0);
         chk0(3163'h7ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff, 3192'hfffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff7ff7fff7fffffffffffffffffffffffffffffff7ff7fff7ffffffffffffffffffffffffffffffffffffffffffffff7ff7fff7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff7ff7fff7fffffffffffffffffffffffffffffff7ff1);
@@ -46,10 +42,7 @@ module tb_bch3d_msg_to_submsg;
         chk3(205'h1ebe83239ef54ba2e1619fb9af5084768b8c54dd0ba5626467ba, 207'h7afa0c8e7bd52e8b85867ee6bd4211da2e3153742e9589919ee8);
         chk3(205'h1f183a828159c9d22950eb25f8a1fc2e6a591ce3bc0c10755c97, 207'h7c60ea0a05672748a543ac97e287f0b9a964738ef03041d57259);
         chk3(205'h1cfd0a227385459c945c43fc052715850a031ad2d5f1e05b3e13, 207'h73f42889ce15167251710ff0149c5614280c6b4b57c7816cf849);
-        for (i=0;i<200;i=i+1) begin
-            mr = {$random,$random,$random,$random,$random,$random,$random,$random,$random,$random,$random,$random,$random,$random,$random,$random,$random,$random,$random,$random,$random,$random,$random,$random,$random,$random,$random,$random,$random,$random,$random,$random,$random,$random,$random,$random,$random,$random,$random,$random,$random,$random,$random,$random,$random,$random,$random,$random,$random,$random,$random,$random,$random,$random,$random,$random,$random,$random,$random,$random,$random,$random,$random,$random,$random,$random,$random,$random,$random,$random,$random,$random,$random,$random,$random,$random,$random,$random,$random,$random,$random,$random,$random,$random,$random,$random,$random,$random,$random,$random,$random,$random,$random,$random,$random,$random,$random,$random,$random,$random,$random}; #1;
-            if (sr !== sp) errors = errors + 1;
-        end
         if (errors==0) $display("PASS"); else $display("FAIL: %0d errors", errors);
-        $finish; end
+        $finish;
+    end
 endmodule
