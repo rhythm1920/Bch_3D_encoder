@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
-"""Python golden model + testbench generator for the parameterised converter."""
+"""Golden model + testbench generator for rtl/bch3d_msg_to_submsg.v.
+
+Usage: python scripts/gen_tb.py [out.v]   (default: tb/tb_bch3d_msg_to_submsg.v)
+"""
 import random, sys
 random.seed(7)
 
@@ -57,5 +60,5 @@ o += [
     "    end",
     "endmodule",
 ]
-out_path = sys.argv[1] if len(sys.argv) > 1 else "tb_bch3d_msg_to_submsg.v"
+out_path = sys.argv[1] if len(sys.argv) > 1 else "tb/tb_bch3d_msg_to_submsg.v"
 open(out_path, "w").write("\n".join(o) + "\n")

@@ -1,0 +1,387 @@
+<title>BCH3D TM Architecture</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&family=Fraunces:opsz,wght@9..144,600&display=swap">
+<style>
+/* Layout: one narrow reading column; two parts (as built by Vivado, as designed), each a figure followed by the numbers behind it. */
+:root {
+  --bg: #f1f4f8; --surface: #ffffff; --ink: #14202e; --muted: #556375; --line: #c9d1dc;
+  --accent: #1f5fbf; --accent-soft: #dce8fa; --hot: #b4540a; --hot-soft: #fbe5d0; --reg: #e6ebf2;
+  --display: "Fraunces", Georgia, serif; --body: "IBM Plex Sans", system-ui, sans-serif; --mono: "IBM Plex Mono", ui-monospace, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0d131a; --surface: #141c26; --ink: #e3e9f1; --muted: #93a0b2; --line: #2b3745;
+  --accent: #6ba4f2; --accent-soft: #1b2e4a; --hot: #f2a363; --hot-soft: #3a2815; --reg: #1c2632; color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --bg: #0d131a; --surface: #141c26; --ink: #e3e9f1; --muted: #93a0b2; --line: #2b3745;
+  --accent: #6ba4f2; --accent-soft: #1b2e4a; --hot: #f2a363; --hot-soft: #3a2815; --reg: #1c2632; color-scheme: dark; }
+
+body { background: var(--bg); color: var(--ink); font: 15px/1.6 var(--body);
+  padding-block: 32px 64px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.wrap { max-width: 1040px; margin: 0 auto; display: flex; flex-direction: column; gap: 36px; }
+h1 { font: 600 clamp(28px, 4vw, 40px)/1.15 var(--display); margin: 0 0 8px; text-wrap: balance; }
+h2 { font: 600 24px/1.2 var(--display); margin: 0 0 4px; text-wrap: balance; }
+h3 { font: 600 12px/1.3 var(--body); letter-spacing: .09em; text-transform: uppercase; color: var(--muted); margin: 0 0 8px; }
+p { margin: 0 0 10px; max-width: 68ch; }
+.lede { color: var(--muted); font-size: 16px; max-width: 70ch; }
+code, .mono { font-family: var(--mono); font-size: .92em; }
+section { display: flex; flex-direction: column; gap: 18px; min-width: 0; }
+.part-tag { font: 500 12px var(--mono); color: var(--accent); letter-spacing: .06em; }
+nav { display: flex; gap: 10px; flex-wrap: wrap; }
+nav a { color: var(--ink); text-decoration: none; border: 1px solid var(--line); background: var(--surface); padding: 6px 12px; border-radius: 4px; font-size: 13px; }
+nav a:hover, nav a:focus-visible { border-color: var(--accent); outline: none; color: var(--accent); }
+figure { margin: 0; background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 14px; min-width: 0; }
+.scroll { overflow-x: auto; }
+figure svg { display: block; width: 100%; min-width: 760px; height: auto; }
+figcaption { color: var(--muted); font-size: 13px; margin-top: 10px; max-width: 80ch; }
+.cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 18px; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 14px; min-width: 0; }
+.bars { display: flex; flex-direction: column; gap: 6px; }
+.bar { display: grid; grid-template-columns: 70px 1fr 92px; gap: 10px; align-items: center; font: 13px var(--mono); font-variant-numeric: tabular-nums; }
+.bar i { display: block; height: 14px; background: var(--accent); border-radius: 2px; min-width: 2px; }
+.bar.hot i { background: var(--hot); }
+.bar span:last-child { text-align: right; color: var(--muted); }
+table { border-collapse: collapse; width: 100%; font-size: 13px; font-variant-numeric: tabular-nums; }
+th, td { text-align: left; padding: 6px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font: 600 11px var(--body); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+td.n, th.n { text-align: right; }
+.note { border-left: 3px solid var(--hot); padding: 4px 0 4px 12px; color: var(--muted); font-size: 13.5px; max-width: 75ch; }
+
+/* svg vocabulary */
+svg text { fill: currentColor; font: 12px var(--body); }
+svg .m { font-family: var(--mono); font-size: 11px; }
+svg .s { fill: var(--muted); font-size: 11px; }
+svg .b { font-weight: 600; }
+svg .box { fill: var(--surface); stroke: currentColor; stroke-width: 1.2; }
+svg .reg { fill: var(--accent-soft); stroke: var(--accent); stroke-width: 1.4; }
+svg .hot { fill: var(--hot-soft); stroke: var(--hot); stroke-width: 1.4; }
+svg .shell { fill: none; stroke: var(--muted); stroke-width: 1; stroke-dasharray: 5 4; }
+svg .wire { fill: none; stroke: currentColor; stroke-width: 1.4; }
+svg .ctl { fill: none; stroke: var(--muted); stroke-width: 1.1; stroke-dasharray: 4 3; }
+svg .grid { stroke: var(--line); stroke-width: 1; }
+svg .ptn { fill: var(--hot); }
+svg .pth { fill: none; stroke: var(--hot); stroke-width: 1.6; }
+svg .ptw { fill: var(--surface); }
+svg .ah { fill: currentColor; }
+</style>
+
+<div class="wrap">
+  <header>
+    <p class="part-tag">BCH3D TIME-MULTIPLEXED ENCODER · N=15, T=2 · xc7v2000t · 6 ns</p>
+    <h1>Two views of the same encoder</h1>
+    <p class="lede">Part A is what Vivado 2026.1 built after place and route of <code>bch3d_enc_tm_asm</code>, read from the routed checkpoint. Part B is the design as intended: the blocks and signals in the RTL.</p>
+    <nav><a href="#vivado">A · As built by Vivado</a><a href="#design">B · As designed</a><a href="#map">Mapping</a></nav>
+  </header>
+
+  <section id="vivado">
+    <div><span class="part-tag">PART A</span><h2>The netlist Vivado generated</h2></div>
+    <p>After synthesis and routing there is no bank or tree boundary left. The design is two register groups with one cloud of LUTs between them, plus the assembly registers. Hierarchy shows only <code>u_core</code> and the top wrapper.</p>
+
+    <figure>
+      <div class="scroll">
+      <svg viewBox="0 0 980 410" role="img" aria-label="Routed netlist: msg and control feed 3,181 S flip-flops, a cloud of 22,285 LUT cells, then 225 slice flip-flops, then 3,375 shift flip-flops and 3,375 codeword flip-flops">
+        <defs><marker id="a1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" class="ah"/></marker></defs>
+        <rect class="shell" x="8" y="8" width="964" height="394" rx="6"/>
+        <text x="20" y="28" class="m b">bch3d_enc_tm_asm (top) · 17,196 LUT · 10,200 FF</text>
+        <rect class="shell" x="150" y="48" width="470" height="330" rx="6"/>
+        <text x="162" y="68" class="m b">u_core : bch3d_enc_tm · 17,195 LUT · 3,429 FF</text>
+
+        <text x="20" y="188" class="m">msg[3162:0]</text>
+        <text x="20" y="262" class="m">start, rst</text>
+        <line class="wire" x1="100" y1="184" x2="168" y2="184" marker-end="url(#a1)"/>
+        <line class="wire" x1="100" y1="258" x2="168" y2="258" marker-end="url(#a1)"/>
+
+        <rect class="reg" x="170" y="140" width="130" height="90" rx="3"/>
+        <text x="235" y="168" text-anchor="middle" class="b">S registers</text>
+        <text x="235" y="186" text-anchor="middle" class="m">3,181 FF</text>
+        <text x="235" y="204" text-anchor="middle" class="s">load or rotate</text>
+        <text x="235" y="219" text-anchor="middle" class="s">(11 of 3,192 merged)</text>
+
+        <rect class="reg" x="170" y="262" width="130" height="86" rx="3"/>
+        <text x="235" y="288" text-anchor="middle" class="b">control</text>
+        <text x="235" y="306" text-anchor="middle" class="m">busy 1 · cyc 4</text>
+        <text x="235" y="322" text-anchor="middle" class="m">slice_idx 4</text>
+        <text x="235" y="338" text-anchor="middle" class="m">slice_valid ×14</text>
+
+        <rect class="hot" x="340" y="92" width="150" height="256" rx="3"/>
+        <text x="415" y="168" text-anchor="middle" class="b">LUT cloud</text>
+        <text x="415" y="188" text-anchor="middle" class="m">22,285 LUT cells</text>
+        <text x="415" y="206" text-anchor="middle" class="s">packed into 17,196</text>
+        <text x="415" y="222" text-anchor="middle" class="s">LUTs (5,089 dual-out)</text>
+        <text x="415" y="248" text-anchor="middle" class="s">no register inside:</text>
+        <text x="415" y="263" text-anchor="middle" class="s">at most 5 LUTs deep</text>
+
+        <rect class="reg" x="530" y="140" width="80" height="90" rx="3"/>
+        <text x="570" y="170" text-anchor="middle" class="b">slice</text>
+        <text x="570" y="188" text-anchor="middle" class="m">225 FF</text>
+
+        <line class="wire" x1="300" y1="185" x2="338" y2="185" marker-end="url(#a1)"/>
+        <line class="wire" x1="490" y1="185" x2="528" y2="185" marker-end="url(#a1)"/>
+        <path class="wire" d="M340 120 H320 V150 H302" marker-end="url(#a1)"/>
+        <text x="322" y="112" class="s">S_rot (via LUTs)</text>
+        <line class="ctl" x1="300" y1="305" x2="338" y2="305"/>
+        <line class="ctl" x1="235" y1="262" x2="235" y2="232" marker-end="url(#a1)"/>
+
+        <line class="wire" x1="610" y1="185" x2="658" y2="185" marker-end="url(#a1)"/>
+        <text x="618" y="176" class="s">slice</text>
+
+        <rect class="reg" x="660" y="120" width="150" height="130" rx="3"/>
+        <text x="735" y="152" text-anchor="middle" class="b">cw_sr</text>
+        <text x="735" y="170" text-anchor="middle" class="m">grp[0..224]</text>
+        <text x="735" y="188" text-anchor="middle" class="m">225 × 15 FF = 3,375</text>
+        <text x="735" y="208" text-anchor="middle" class="s">shift, CE = slice_valid</text>
+        <text x="735" y="223" text-anchor="middle" class="s">no reset</text>
+
+        <rect class="reg" x="850" y="120" width="110" height="130" rx="3"/>
+        <text x="905" y="152" text-anchor="middle" class="b">codeword</text>
+        <text x="905" y="172" text-anchor="middle" class="m">3,375 FF</text>
+        <text x="905" y="192" text-anchor="middle" class="s">loads on done_d</text>
+        <line class="wire" x1="810" y1="185" x2="848" y2="185" marker-end="url(#a1)"/>
+
+        <rect class="reg" x="660" y="290" width="180" height="60" rx="3"/>
+        <text x="750" y="314" text-anchor="middle" class="b">done_d ×20 · cw_valid</text>
+        <text x="750" y="332" text-anchor="middle" class="m">21 FF</text>
+        <line class="ctl" x1="750" y1="290" x2="750" y2="252"/>
+        <path class="ctl" d="M840 320 H905 V252" marker-end="url(#a1)"/>
+        <line class="wire" x1="905" y1="250" x2="905" y2="272"/>
+        <text x="860" y="380" class="m">codeword[3374:0], cw_valid →</text>
+        <text x="20" y="392" class="s">solid = data · dashed = control / enable</text>
+      </svg>
+      </div>
+      <figcaption>Routed netlist of <code>bch3d_enc_tm_asm</code> at 6 ns. The 10,200 flip-flops split as 3,181 S + 9 control + 14 slice_valid + 225 slice + 3,375 cw_sr + 3,375 codeword + 21 done/valid flags (counts read from the checkpoint). The orange block is the only combinational logic.</figcaption>
+    </figure>
+
+    <div class="cols">
+      <div class="card">
+        <h3>LUT cells by input count</h3>
+        <div class="bars" id="lutbars"></div>
+        <p class="s" style="margin:10px 0 0;color:var(--muted);font-size:13px">22,285 cells in the netlist. 5,089 pairs share one physical LUT through its O5/O6 outputs, which is why the report counts 17,196.</p>
+      </div>
+      <div class="card">
+        <h3>Logic depth, worst 3,000 endpoints</h3>
+        <div class="bars" id="lvbars"></div>
+        <p class="s" style="margin:10px 0 0;color:var(--muted);font-size:13px">Levels counted per endpoint from the routed timing graph. The 223 five-level endpoints are the slice flip-flops; depth 0 is mostly the shift-register chain.</p>
+      </div>
+    </div>
+
+    <figure>
+      <div class="scroll">
+      <svg viewBox="0 0 980 330" role="img" aria-label="Placement of the 5-LUT critical datapath across the fabric, from SLICE_X171Y90 to SLICE_X216Y122">
+        <rect class="grid" x="50" y="20" width="540" height="270" fill="none" stroke="currentColor" opacity=".25"/>
+        <g id="gridlines"></g>
+        <text x="320" y="318" text-anchor="middle" class="s">SLICE_X (columns)</text>
+        <text x="14" y="160" class="s" transform="rotate(-90 14 160)" text-anchor="middle">SLICE_Y (rows)</text>
+        <g id="pathpts"></g>
+        <text x="620" y="40" class="b">Datapath S → slice, 5 LUT levels</text>
+        <text x="620" y="58" class="s">launch S_reg[1875] · capture slice_reg[166]</text>
+        <g id="hoptext"></g>
+        <text x="620" y="258" class="m b">data path 5.705 ns</text>
+        <text x="620" y="276" class="s">logic 0.659 ns (12%) · routing 5.046 ns (88%)</text>
+      </svg>
+      </div>
+      <figcaption>One real datapath, plotted at its placed slice coordinates. The five LUT levels cover about 0.4 ns of cell delay, but the cells sit 45 columns and 32 rows apart, so routing dominates. This is why the design stops at 6 ns.</figcaption>
+    </figure>
+    <p class="note">The wrapper's own worst path is different: <code>u_core/slice_valid_reg</code> to the clock enable of <code>grp[149].cw_sr_reg[2246]</code>. It has no logic (5.650 ns, 95% routing) because one enable reaches 3,375 flip-flops.</p>
+  </section>
+
+  <section id="design">
+    <div><span class="part-tag">PART B</span><h2>The design as intended</h2></div>
+    <p>One codeword takes 15 cycles. Each cycle, 225 XOR trees each produce one bit of an output slice, and the 225 slices are shifted into 3,375 bits of storage.</p>
+
+    <figure>
+      <div class="scroll">
+      <svg viewBox="0 0 980 500" role="img" aria-label="Block diagram: msg to sub-message map to S register, exponent bank, 225 XOR trees, slice register, 15-deep shift registers and holding register, with a control FSM and a rotation loop on S">
+        <defs><marker id="a2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" class="ah"/></marker></defs>
+
+        <rect class="box" x="10" y="170" width="100" height="70" rx="3"/>
+        <text x="60" y="198" text-anchor="middle" class="m b">msg</text>
+        <text x="60" y="216" text-anchor="middle" class="s">3,163 bits</text>
+        <text x="60" y="230" text-anchor="middle" class="s">latched on accept</text>
+
+        <rect class="box" x="145" y="170" width="105" height="70" rx="3"/>
+        <text x="197" y="194" text-anchor="middle" class="b">sub-message</text>
+        <text x="197" y="211" text-anchor="middle" class="s">wiring only</text>
+        <text x="197" y="226" text-anchor="middle" class="s">798 × 4 bits</text>
+
+        <rect class="reg" x="285" y="150" width="125" height="110" rx="3"/>
+        <text x="347" y="176" text-anchor="middle" class="b">S register</text>
+        <text x="347" y="194" text-anchor="middle" class="m">S[3191:0]</text>
+        <text x="347" y="212" text-anchor="middle" class="s">one GF(16) element</text>
+        <text x="347" y="226" text-anchor="middle" class="s">per message class</text>
+        <text x="347" y="245" text-anchor="middle" class="s">accept ? load : rotate</text>
+
+        <rect class="box" x="450" y="150" width="120" height="110" rx="3"/>
+        <text x="510" y="176" text-anchor="middle" class="b">exponent bank</text>
+        <text x="510" y="194" text-anchor="middle" class="m">10,608 wires</text>
+        <text x="510" y="212" text-anchor="middle" class="s">α^k · S_k, k from</text>
+        <text x="510" y="226" text-anchor="middle" class="s">the i″=0 exponents</text>
+        <text x="510" y="245" text-anchor="middle" class="s">≤ 4-input XOR each</text>
+
+        <rect class="hot" x="610" y="150" width="120" height="110" rx="3"/>
+        <text x="670" y="176" text-anchor="middle" class="b">225 XOR trees</text>
+        <text x="670" y="194" text-anchor="middle" class="m">u = (i, i′)</text>
+        <text x="670" y="212" text-anchor="middle" class="s">each XORs 798 wires</text>
+        <text x="670" y="226" text-anchor="middle" class="s">one per class</text>
+        <text x="670" y="245" text-anchor="middle" class="s">reused every cycle</text>
+
+        <rect class="reg" x="770" y="150" width="100" height="110" rx="3"/>
+        <text x="820" y="176" text-anchor="middle" class="b">slice reg</text>
+        <text x="820" y="194" text-anchor="middle" class="m">slice[224:0]</text>
+        <text x="820" y="212" text-anchor="middle" class="s">slice_idx 0..14</text>
+        <text x="820" y="226" text-anchor="middle" class="s">slice_valid</text>
+
+        <g class="wire">
+          <line x1="110" y1="205" x2="143" y2="205" marker-end="url(#a2)"/>
+          <line x1="250" y1="205" x2="283" y2="205" marker-end="url(#a2)"/>
+          <line x1="410" y1="205" x2="448" y2="205" marker-end="url(#a2)"/>
+          <line x1="570" y1="205" x2="608" y2="205" marker-end="url(#a2)"/>
+          <line x1="730" y1="205" x2="768" y2="205" marker-end="url(#a2)"/>
+        </g>
+        <text x="412" y="198" class="s">S</text>
+        <text x="575" y="198" class="s">wires</text>
+        <text x="733" y="198" class="s">225 b</text>
+
+        <rect class="box" x="285" y="330" width="125" height="50" rx="3"/>
+        <text x="347" y="352" text-anchor="middle" class="b">× α^−j3</text>
+        <text x="347" y="368" text-anchor="middle" class="s">per-class rotate</text>
+        <path class="wire" d="M310 260 V330" marker-end="url(#a2)"/>
+        <path class="wire" d="M385 330 V262" marker-end="url(#a2)"/>
+        <text x="258" y="300" class="s">S</text>
+        <text x="392" y="300" class="s">S_rot</text>
+
+        <rect class="box" x="285" y="20" width="445" height="62" rx="3"/>
+        <text x="507" y="44" text-anchor="middle" class="b">control</text>
+        <text x="507" y="62" text-anchor="middle" class="m">busy · cyc 0..14 · accept = start &amp;&amp; (!busy || cyc==14)</text>
+        <path class="ctl" d="M347 82 V148" marker-end="url(#a2)"/>
+        <path class="ctl" d="M820 82 V148" marker-end="url(#a2)"/>
+        <text x="352" y="118" class="s">load / rotate</text>
+        <text x="826" y="118" class="s">idx, valid, done</text>
+        <path class="ctl" d="M670 82 V148" marker-end="url(#a2)"/>
+        <text x="676" y="118" class="s">cycle c picks tree exponents</text>
+
+        <rect class="reg" x="560" y="330" width="210" height="70" rx="3"/>
+        <text x="665" y="354" text-anchor="middle" class="b">assembly shift registers</text>
+        <text x="665" y="372" text-anchor="middle" class="m">225 groups × 15 bits</text>
+        <text x="665" y="388" text-anchor="middle" class="s">group g takes slice[g], CE = slice_valid</text>
+        <path class="wire" d="M820 260 V295 H665 V328" marker-end="url(#a2)"/>
+        <text x="740" y="289" class="s">slice[g] → group g</text>
+
+        <rect class="reg" x="810" y="330" width="160" height="70" rx="3"/>
+        <text x="890" y="354" text-anchor="middle" class="b">holding register</text>
+        <text x="890" y="372" text-anchor="middle" class="m">codeword[3374:0]</text>
+        <text x="890" y="388" text-anchor="middle" class="s">loads on done_d</text>
+        <line class="wire" x1="770" y1="365" x2="808" y2="365" marker-end="url(#a2)"/>
+        <path class="ctl" d="M870 82 V120 H950 V328" marker-end="url(#a2)"/>
+        <text x="896" y="432" text-anchor="middle" class="m">cw_valid = done delayed 2</text>
+        <text x="896" y="450" text-anchor="middle" class="s">codeword stable 15 cycles</text>
+
+        <text x="14" y="468" class="s">solid = data · dashed = control · orange = the only logic that is reused across cycles</text>
+      </svg>
+      </div>
+      <figcaption>Pipeline of <code>bch3d_enc_tm_asm</code>. The S register is the only state that changes between cycles of one codeword. Rotating each class by α^−j3 shifts which exponent every tree sees, so the same 225 trees give a different slice each cycle without a 15:1 mux per wire.</figcaption>
+    </figure>
+
+    <figure>
+      <div class="scroll">
+      <svg viewBox="0 0 980 230" role="img" aria-label="Relative timing: start, 15 slice cycles, done, done_d, cw_valid; the holding register changes once per codeword">
+        <g id="tl"></g>
+      </svg>
+      </div>
+      <figcaption>Relative timing for one codeword. Slices 0..14 arrive on 15 consecutive cycles; the last one completes the shift registers, <code>done</code> goes high with it, and the holding register loads one cycle later. A new <code>start</code> in the last busy cycle gives back-to-back codewords at 1 per 15 cycles.</figcaption>
+    </figure>
+  </section>
+
+  <section id="map">
+    <div><span class="part-tag">MAPPING</span><h2>RTL names against Vivado cells</h2></div>
+    <div class="card scroll">
+      <table>
+        <thead><tr><th>Design block</th><th>RTL signal</th><th>In the routed netlist</th><th class="n">Count</th></tr></thead>
+        <tbody>
+          <tr><td>S register</td><td><code>S[3191:0]</code></td><td><code>u_core/S_reg[*]</code> FDRE</td><td class="n">3,181 FF</td></tr>
+          <tr><td>Control</td><td><code>busy, cyc, slice_idx</code></td><td><code>u_core/busy, cyc, slice_idx</code></td><td class="n">9 FF</td></tr>
+          <tr><td>Exponent bank + rotate + trees</td><td><code>mul_out, S_rot, slice_c</code></td><td>LUT2–LUT6 cloud, no hierarchy kept</td><td class="n">22,285 cells</td></tr>
+          <tr><td>Slice register</td><td><code>slice, slice_valid</code></td><td><code>u_core/slice_reg</code>, <code>slice_valid_reg</code> ×14 (replicated)</td><td class="n">239 FF</td></tr>
+          <tr><td>Shift registers</td><td><code>cw_sr</code></td><td><code>grp[g].cw_sr_reg[*]</code></td><td class="n">3,375 FF</td></tr>
+          <tr><td>Holding register</td><td><code>codeword</code></td><td><code>codeword_reg[*]</code></td><td class="n">3,375 FF</td></tr>
+          <tr><td>Output flags</td><td><code>done_d, cw_valid</code></td><td><code>done_d_reg</code> ×20 (replicated), <code>cw_valid_reg</code></td><td class="n">21 FF</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="note">Vivado merged 11 of the 3,192 S bits (a few classes have fewer than four live bits) and replicated <code>slice_valid</code> and <code>done_d</code> to cut fanout. Everything else maps one to one.</p>
+  </section>
+</div>
+
+<script>
+(function () {
+  function bars(id, rows, max, hotKey) {
+    var el = document.getElementById(id), h = "";
+    rows.forEach(function (r) {
+      var pct = Math.max(0.4, r[1] / max * 100);
+      h += '<div class="bar' + (r[0] === hotKey ? ' hot' : '') + '"><span>' + r[0] + '</span><i style="width:' + pct + '%"></i><span>' + r[1].toLocaleString("en-US") + '</span></div>';
+    });
+    el.innerHTML = h;
+  }
+  bars("lutbars", [["LUT6", 11289], ["LUT2", 4147], ["LUT3", 3592], ["LUT4", 2174], ["LUT5", 1082], ["LUT1", 1]], 11289);
+  bars("lvbars", [["0 levels", 516], ["1 level", 85], ["2 levels", 2174], ["3 levels", 0], ["4 levels", 2], ["5 levels", 223]], 2174, "5 levels");
+
+  var NS = "http://www.w3.org/2000/svg";
+  function el(parent, tag, attrs, text) {
+    var e = document.createElementNS(NS, tag);
+    for (var k in attrs) e.setAttribute(k, attrs[k]);
+    if (text != null) e.textContent = text;
+    parent.appendChild(e); return e;
+  }
+
+  /* placement map: x 150..230, y 80..130 */
+  var px = function (x) { return 50 + (x - 150) * 6.75; };
+  var py = function (y) { return 290 - (y - 80) * 5.4; };
+  var g = document.getElementById("gridlines");
+  [150, 170, 190, 210, 230].forEach(function (x) {
+    el(g, "line", { "class": "grid", x1: px(x), y1: 20, x2: px(x), y2: 290, opacity: .5 });
+    el(g, "text", { x: px(x), y: 306, "text-anchor": "middle", "class": "s" }, "X" + x);
+  });
+  [80, 90, 100, 110, 120, 130].forEach(function (y) {
+    el(g, "line", { "class": "grid", x1: 50, y1: py(y), x2: 590, y2: py(y), opacity: .5 });
+    el(g, "text", { x: 44, y: py(y) + 4, "text-anchor": "end", "class": "s" }, "Y" + y);
+  });
+  var hops = [
+    ["S_reg[1875]", "FDRE", 171, 90, "launch · clk→Q 0.269"],
+    ["slice[211]_i_283", "LUT2", 168, 90, "+0.708 ns"],
+    ["slice[211]_i_83", "LUT6", 168, 89, "+0.856 ns"],
+    ["slice[211]_i_19", "LUT6", 159, 89, "+0.877 ns"],
+    ["slice[166]_i_4", "LUT6", 176, 105, "+1.358 ns"],
+    ["slice[166]_i_1", "LUT5", 216, 122, "+1.637 ns"]
+  ];
+  var pp = document.getElementById("pathpts"), ht = document.getElementById("hoptext");
+  var d = "";
+  hops.forEach(function (h, i) { d += (i ? "L" : "M") + px(h[2]) + " " + py(h[3]) + " "; });
+  el(pp, "path", { "class": "pth", d: d });
+  hops.forEach(function (h, i) {
+    var cx = px(h[2]), cy = py(h[3]);
+    el(pp, "circle", { "class": "ptn", cx: cx, cy: cy, r: 9 });
+    el(pp, "text", { x: cx, y: cy + 4, "text-anchor": "middle", "class": "b", style: "fill:var(--bg);font-size:11px" }, String(i));
+    el(ht, "text", { x: 620, y: 84 + i * 26, "class": "m" }, i + "  " + h[1] + "  X" + h[2] + "Y" + h[3]);
+    el(ht, "text", { x: 790, y: 84 + i * 26, "class": "s" }, h[4]);
+  });
+  el(pp, "text", { x: px(216) - 10, y: py(122) - 14, "text-anchor": "end", "class": "s" }, "slice_reg[166] (D)");
+
+  /* timing strip */
+  var t = document.getElementById("tl");
+  var x0 = 150, cw = 38, rows = [["start", 40], ["busy", 78], ["slice_valid", 116], ["done", 154], ["cw_valid", 192]];
+  rows.forEach(function (r) {
+    el(t, "text", { x: 14, y: r[1] + 4, "class": "m" }, r[0]);
+    el(t, "line", { "class": "grid", x1: x0, y1: r[1] + 10, x2: x0 + cw * 20, y2: r[1] + 10 });
+  });
+  function pulse(row, a, b, cls) { el(t, "rect", { x: x0 + a * cw, y: row - 12, width: (b - a) * cw, height: 22, "class": cls || "reg", rx: 2 }); }
+  pulse(40, 0, 1);
+  pulse(78, 1, 16, "reg");
+  pulse(116, 2, 17, "hot");
+  pulse(154, 16, 17);
+  pulse(192, 18, 19);
+  for (var c = 0; c < 15; c++) el(t, "text", { x: x0 + (2 + c) * cw + cw / 2, y: 120, "text-anchor": "middle", "class": "m", style: "font-size:10px" }, String(c));
+  el(t, "text", { x: x0 + 8.5 * cw, y: 82, "text-anchor": "middle", "class": "s" }, "cyc 0..14, S rotates each cycle");
+  el(t, "text", { x: x0 + 17 * cw + 4, y: 158, "class": "s" }, "done_d → codeword loads");
+  el(t, "text", { x: x0 + 19 * cw + 4, y: 196, "class": "s" }, "codeword valid for 15 cycles");
+  el(t, "text", { x: x0 + 1.5 * cw, y: 44, "class": "s" }, "accept");
+  for (var k = 0; k <= 20; k++) el(t, "text", { x: x0 + k * cw, y: 220, "text-anchor": "middle", "class": "s", style: "font-size:10px" }, "t" + k);
+})();
+</script>

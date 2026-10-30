@@ -7,3 +7,7 @@ __pycache__/
 *.log
 *.jou
 xsim.dir/
+.Xil/
+clockInfo.txt
+hs_err_pid*.dmp
+*.dcp

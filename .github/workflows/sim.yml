@@ -5,33 +5,55 @@ on:
   workflow_dispatch:
 
 jobs:
-  sim:
+  model:
+    name: Golden model self-test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - run: make model-test
 
-      - name: Setup OSS CAD Suite
-        uses: YosysHQ/setup-oss-cad-suite@v3
+  encoder:
+    name: Encoder sim (N=${{ matrix.n }}, T=${{ matrix.t }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { n: 7, t: 1 }
+          - { n: 7, t: 2 }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: YosysHQ/setup-oss-cad-suite@v3
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Show tool versions
-        run: |
-          verilator --version
-          yosys -V
-
-      - name: Lint
-        run: make lint
-
-      - name: Simulate
-        run: make sim
-
-      - name: Upload waveform and log
+      - name: Converter testbench (first matrix leg only)
+        if: matrix.n == 7 && matrix.t == 1
+        run: make conv-test
+      - name: Generate RTL, simulate baseline + optimised + time-multiplexed against golden model
+        run: make enc-sim N=${{ matrix.n }} T=${{ matrix.t }}
+      - uses: actions/upload-artifact@v4
         if: always()
-        uses: actions/upload-artifact@v4
         with:
-          name: sim-results
-          path: |
-            sim/dump.vcd
-            sim/sim.log
+          name: enc-sim-n${{ matrix.n }}-t${{ matrix.t }}
+          path: build/sim_*.log
           retention-days: 7
+
+  encoder-n15-generate:
+    name: Generator + golden cross-check (N=15, T=2)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Generate RTL and vectors (asserts vs 3-D IDFFFT and null-cube check)
+        run: make enc-gen N=15 T=2 RAND=10
+
+  template:
+    name: Counter template
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: YosysHQ/setup-oss-cad-suite@v3
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - run: make lint
+      - run: make sim

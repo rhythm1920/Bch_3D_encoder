@@ -124,22 +124,12 @@ class BCH3DModel:
                 exps_set.add(e)
             distinct_exps = sorted(exps_set)
 
-            # For each exponent e, find which bits of S_k (in polynomial basis) XOR to Tr_d(S_k * alpha^e)
-            # Note: S_k is guaranteed to lie in GF(2^d), where 1^(2^d) = 1.
-            # Over all 4-bit polynomial basis elements, the formula in the paper/report is linear in S_k's M bits.
-            # Specifically, for each basis element alpha^r (r=0..M-1), the paper's conjugate block computes:
-            #   for d=M: sum_{u=0}^{M-1} (S_k * alpha^e)^(2^u) evaluated at MSB (or trace_M(S_k * alpha^e) when Tr(alpha^(M-1))=1).
-            #Wait! Let's compute the exact linear functional on the d message bits AND on the M sub_msg bits!
+            # trace_masks[e]: M-bit mask m such that parity(S_k & m) == Tr_d(S_k * alpha^e)
+            # for every S_k in GF(2^d). Bit 0 of sum_{u<d} (alpha^r * alpha^e)^(2^u) is the
+            # contribution of basis bit r; the higher bits cancel once S_k lies in GF(2^d).
             trace_masks: Dict[int, int] = {}
             for e in distinct_exps:
                 tw = self.exp[e]
-                # We need a linear mask over the M bits of S_k such that for every S_k in the subfield GF(2^d),
-                # parity(S_k & m_mask) == trace_d(S_k * tw).
-                # Even better: in the paper's conjugate block, J(alpha) = S_k * tw, and we sum J^(2^u) for u=0..d-1.
-                # Because S_k in GF(2^d), sum_{u=0}^{d-1} (S_k * tw)^(2^u) == trace_d(S_k * tw) in GF(2) = {0, 1}
-                # which sits in the alpha^0 coefficient! Wait: in GF(2^M), the element 1 has polynomial representation 4'b0001 (bit 0)!
-                # Wait: why did the paper take MSB (j3 or j2) instead of j0?!
-                # Let's check both and record the exact bit functional!
                 m_mask = 0
                 for r in range(M):
                     # Contribution of S_k bit r to sum_{u=0}^{d-1} ((alpha^r * tw)^(2^u)) bit 0:
@@ -149,9 +139,6 @@ class BCH3DModel:
                     for _ in range(d):
                         acc ^= y
                         y = self.sq(y)
-                    # When S_k is in GF(2^d), acc is guaranteed to be 0 or 1 (so bit 0 is the GF(2) value, bits 1..M-1 cancel).
-                    # For an individual basis element alpha^r not in GF(2^d), bits 1..M-1 cancel once combined across S_k in GF(2^d),
-                    # so bit 0 of acc is the exact linear functional!
                     if acc & 1:
                         m_mask |= (1 << r)
                 trace_masks[e] = m_mask

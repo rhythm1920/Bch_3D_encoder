@@ -1,0 +1,247 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{microtype}
+\usepackage{siunitx}
+\usepackage{xcolor}
+\usepackage[hidelinks]{hyperref}
+
+\title{\textbf{Design, Implementation, and FPGA Synthesis of Fully Parallel and Time-Multiplexed 3-D BCH ($N=15, T=2$) Spectral-Domain Encoders}}
+\author{\textbf{Rhythm Jain}}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+This article presents the architecture, formal verification, and FPGA implementation results for a fully parallel three-dimensional (3-D) spectral-domain Bose--Chaudhuri--Hocquenghem (BCH) encoder. Targeting code parameters $N=15, T=2$ ($K=3,163$ message bits, $N^3=3,375$ codeword bits) over Galois Field $\text{GF}(16)$ with primitive polynomial $p(x) = x^4 + x + 1$, we contrast the conventional baseline architecture against the computation-class optimised (``compute-once, route-many'') architecture. Synthesis is performed out-of-context in AMD Vivado 2026.1 targeting the Xilinx Virtex-7 \texttt{xc7v2000tflg1925-1} FPGA. Functional correctness across all $2^{3,163}$ possible message vectors is mathematically guaranteed through a formal $\text{GF}(2)$ linearity verification over all $3,163$ unit vectors and verified against an independent 3-D IDFFFT golden model. Our synthesis results demonstrate that the computation-class optimization slashes total FPGA resource consumption from $1,156,681$ to $544,597$ LUTs (a 52.92\% overall reduction), while reducing the multiplier stage from $1,976,400$ unshared conjugate-block LUTs down to $4,597$ LUTs (a 99.77\% reduction). We then present a time-multiplexed variant that evaluates the codeword one $15\times15$ slice per clock cycle with only $225$ reused XOR trees, using a per-class rotating sub-message register so that no routing multiplexers are needed. After place and route on the same device it meets timing at 6~ns ($167$~MHz) with $17,197$ LUTs and $3,416$ flip-flops (against $544,597$ LUTs for the single-cycle design), at the cost of one codeword per $15$ cycles ($11.1$ million codewords/s). The routed netlist was re-simulated against the golden model with no errors.
+\end{abstract}
+
+\section{Introduction}
+
+High-density holographic storage, multi-track magnetic recording, and volumetric optical media require error-correcting codes that operate natively in multi-dimensional space. Three-dimensional (3-D) cyclic Bose--Chaudhuri--Hocquenghem (BCH) codes provide strong algebraic guarantees on error correction with high code rates. However, traditional 1-D cyclic encoders rely on serial polynomial division registers that do not naturally extend to higher dimensions.
+
+In contrast, spectral-domain encoding based on the multi-dimensional Inverse Discrete Finite-Field Fourier Transform (IDFFFT) allows fully parallel codeword generation in a single clock cycle. While a naive implementation of 3-D spectral encoding suffers from quadratic hardware blowup across spatial coordinates, exploiting the algebraic structure of finite-field conjugate classes makes massive parallel encoding feasible on modern FPGAs.
+
+In this article, we detail the complete 3-D hardware architecture for $N=15, T=2$, analyze its computational decomposition, and report post-synthesis FPGA utilization results obtained using AMD Vivado 2026.1.
+
+\section{Code Parameters and Algebraic Foundations}
+
+The 3-D binary BCH code is defined as an $N \times N \times N$ array $c(i, i', i'')$ over $\text{GF}(2)$ whose frequency spectrum $C(j_1, j_2, j_3)$ over $\text{GF}(2^m)$ satisfies the 3-D IDFFFT relation:
+\begin{equation}
+c(i, i', i'') = \sum_{j_1=0}^{N-1} \sum_{j_2=0}^{N-1} \sum_{j_3=0}^{N-1} C_{j_1, j_2, j_3} \, \alpha^{-(i j_1 + i' j_2 + i'' j_3)}
+\label{eq:idffft}
+\end{equation}
+where $\alpha$ is a primitive root of the primitive polynomial $p(x) = x^4 + x + 1$ over $\text{GF}(2)$ ($m=4$).
+
+\subsection{Conjugacy Constraints and Spectral Nulls}
+To guarantee that the spatial codeword elements $c(i, i', i'')$ are strictly binary ($\in \{0, 1\}$), the frequency spectrum must satisfy the Frobenius automorphism condition:
+\begin{equation}
+C_{2 j_1, 2 j_2, 2 j_3} = \left( C_{j_1, j_2, j_3} \right)^2 \pmod{15}
+\end{equation}
+This partitions all $N^3 = 3,375$ frequency coordinates into cyclotomic cosets (conjugate classes) $C_k = \{ (2^r j_1, 2^r j_2, 2^r j_3) \pmod{15} \}$.
+
+The designed error-correction capability $T=2$ enforces that all frequency coefficients within a $(2T) \times (2T) \times (2T) = 4 \times 4 \times 4$ cube are identically zero:
+\begin{equation}
+C_{j_1, j_2, j_3} = 0 \quad \text{for } j_1, j_2, j_3 \in \{0, 1, 2, 3\}
+\end{equation}
+Any conjugate class containing at least one point inside this null cube must be set entirely to zero. Out of the 851 total 3-D conjugate classes, exactly 53 classes fall into the null region. Information bits are encoded into the remaining 798 message-carrying classes. Table~\ref{tab:code_params} summarizes the code parameters.
+
+\begin{table}[htbp]
+\centering
+\caption{Mathematical Parameters of the 3-D BCH Code ($N=15, T=2$)}
+\label{tab:code_params}
+\vspace{0.2cm}
+\begin{tabular}{ll}
+\toprule
+\textbf{Parameter} & \textbf{Value} \\
+\midrule
+Galois Field & $\text{GF}(16)$ ($m=4$) \\
+Primitive Polynomial $p(x)$ & $x^4 + x + 1$ (\texttt{5'b10011}) \\
+Codeword Dimensions ($N \times N \times N$) & $15 \times 15 \times 15 = 3,375$ bits \\
+Spectral-Null Cube $(2T)^3$ & $4 \times 4 \times 4 = 64$ zeros \\
+Total 3-D Conjugate Classes & 851 \\
+Null Conjugate Classes (Fixed to 0) & 53 \\
+Message-Carrying Conjugate Classes ($N_{\text{CLASS}}$) & \textbf{798} \\
+--- Classes with Orbit Size $d=4$ (over $\text{GF}(16)$) & 784 ($784 \times 4 = 3,136$ bits) \\
+--- Classes with Orbit Size $d=2$ (over $\text{GF}(4)$)  & 13 ($13 \times 2 = 26$ bits) \\
+--- Classes with Orbit Size $d=1$ (over $\text{GF}(2)$)  & 1 ($1 \times 1 = 1$ bit) \\
+Total Message Length ($K$) & \textbf{3,163 bits} \\
+Code Rate ($R = K / N^3$) & \textbf{0.9372} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Closed-Form Trace Identification}
+Evaluating the contribution of conjugate class $k$ with representative $J_k = (j_1, j_2, j_3)$ and sub-message $S_k$ at point $(i, i', i'')$ simplifies via conjugacy to an absolute trace over $\text{GF}(2)$:
+\begin{equation}
+\text{Contribution}_k(i, i', i'') = \mathrm{Tr}_{d_k}\left( S_k \cdot \alpha^{-(i j_1 + i' j_2 + i'' j_3)} \right)
+\end{equation}
+Under the field polynomial $p(x) = x^4 + x + 1$, the field elements satisfy $\mathrm{Tr}_{16/2}(1) = \mathrm{Tr}_{16/2}(\alpha) = \mathrm{Tr}_{16/2}(\alpha^2) = 0$ and $\mathrm{Tr}_{16/2}(\alpha^3) = 1$. Consequently, for any element $Y = y_0 + y_1 \alpha + y_2 \alpha^2 + y_3 \alpha^3 \in \text{GF}(16)$:
+\begin{equation}
+\mathrm{Tr}_{16/2}(Y) = y_3 = \text{MSB}(Y)
+\end{equation}
+Evaluating the trace is identical to extracting the most significant bit (MSB) of the finite-field product $S_k \cdot \alpha^e$.
+
+\section{3-D Encoder Architectures}
+
+\subsection{Baseline Architecture}
+In the conventional baseline architecture, each of the $N^3 = 3,375$ output points instantiates an independent 3-D IDFFFT block. Inside each block:
+\begin{enumerate}
+    \item 798 conjugate-block multipliers compute $\mathrm{Tr}_{d_k}(S_k \cdot \alpha^{-(i j_1 + i' j_2 + i'' j_3)})$ from the input sub-messages.
+    \item An adder tree XOR-sums the 798 multiplier outputs to produce codeword bit $c(i, i', i'')$.
+\end{enumerate}
+Because multiplications are performed independently at each point, the baseline encoder requires $3,375 \times 798 = \mathbf{2,693,250}$ conjugate-block multiplier instances. Even when optimized into lookup-table trees, each output bit must sum an average of 1,716 active sub-message bits, resulting in over $1.15$ million LUTs across the device.
+
+\subsection{Computation-Class Optimised Architecture}
+The core insight of the optimised architecture is that the twiddle exponent:
+\begin{equation}
+e(i, i', i'') = -(i j_1 + i' j_2 + i'' j_3) \pmod{15}
+\end{equation}
+does not produce 3,375 distinct values across the cube. Instead, the number of distinct values taken by $e(i, i', i'')$ across all points is strictly bounded by:
+\begin{equation}
+|E_k| = \frac{15}{\gcd(j_1, j_2, j_3, 15)} \in \{15, 5, 3, 1\}
+\end{equation}
+
+By classifying every conjugate class into its computation class, we can precompute the complete set of unique trace-multiplication products in a centralized multiplier bank and route the resulting wires to the output points. Table~\ref{tab:comp_classes} details the computation classes for all 798 message-carrying classes.
+
+\begin{table}[htbp]
+\centering
+\caption{3-D Computation-Class Breakdown and Multiplier Bank Resource Allocation}
+\label{tab:comp_classes}
+\vspace{0.2cm}
+\begin{tabular}{lccccc}
+\toprule
+\textbf{Computation Class} & $\gcd$ & \textbf{Classes} & \textbf{Distinct Exponents} & \textbf{Shared Outputs} & \textbf{LUTs} \\
+\midrule
+15-Computation & 1 & 754 & 15 & 11,310 & 4,524 \\
+5-Computation  & 3 &  30 &  5 &    150 &    60 \\
+3-Computation  & 5 &  13 &  3 &     39 &    13 \\
+1-Computation  & 15 &  1 &  1 &      1 &     0 \\
+\midrule
+\textbf{Total Multiplier Bank} & --- & \textbf{798} & --- & \textbf{11,500} & \textbf{4,597} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\noindent Across the entire 3-D encoder, the multiplier bank produces only \textbf{11,500 shared wires}, completely replacing the 2,693,250 distributed conjugate-block multipliers.
+
+\subsection{Hardware Module Breakdown}
+The optimised encoder (\texttt{bch3d\_enc\_opt}) comprises three modular stages:
+\begin{enumerate}
+    \item \textbf{Sub-message Converter (\texttt{bch3d\_msg\_to\_submsg})}: Splits $K=3,163$ bits into 798 sub-messages. For the 13 size-2 classes, subfield basis $\{1, \alpha^5\} = \{1, \alpha + \alpha^2\}$ has disjoint polynomial support from $\{1\}$ and $\{\alpha^3\}$ in $\text{GF}(16)$. Hence, $(m_0, m_1)$ maps to $m_0 + m_1 \alpha + m_1 \alpha^2 + 0 \cdot \alpha^3$ via pure static wiring (\textbf{0 LUTs}).
+    \item \textbf{Multiplier Bank (\texttt{bch3d\_mul\_bank\_n15\_t2})}: Implements the 798 computation-class units, outputting the 11,500 shared trace product signals using only \textbf{4,597 LUTs}.
+    \item \textbf{Routing and XOR Network}: Each coordinate $(i, i', i'')$ routes exactly 798 precomputed 1-bit wires into an instance of \texttt{bch3d\_xor\_tree\_n15\_t2}. Each 798-input XOR tree uses 160 LUTs, requiring exactly $3,375 \times 160 = \mathbf{540,000}$ LUTs for the entire output array.
+\end{enumerate}
+
+\subsection{Time-Multiplexed Architecture}
+\label{sec:tm}
+In the optimised encoder the $3,375$ output trees account for $99\%$ of the logic. The time-multiplexed encoder (\texttt{bch3d\_enc\_tm}) reuses $225$ trees over $N=15$ cycles. Let the cycle be $c=i''$ and let the tree index be $u=(i,i')$, so that cycle $c$ produces the $15\times15$ slice $i''=c$. For a class with representative $(j_1,j_2,j_3)$ the twiddle exponent splits as
+\begin{equation}
+e = -(i j_1 + i' j_2) - c\, j_3 = e_0(u) - c\, j_3 \pmod{15},
+\end{equation}
+where $e_0(u)$ depends only on the tree. Because multiplication by a power of $\alpha$ can be moved from the exponent onto the sub-message,
+\begin{equation}
+\operatorname{Tr}_d\!\left(S_k\,\alpha^{e}\right) = \operatorname{Tr}_d\!\left(\left(S_k\,\alpha^{-c j_3}\right)\alpha^{e_0(u)}\right),
+\end{equation}
+tree $u$ can be wired once, at design time, to the multiplier-bank output of exponent $e_0(u)$, provided the bank is fed with the rotated sub-message $S_k(c)=S_k\,\alpha^{-c j_3}$. One $4$-bit register per class holds $S_k(c)$; it is loaded when a codeword is accepted and updated every cycle by $S_k \leftarrow S_k\,\alpha^{-j_3}$, a constant $\text{GF}(16)$ multiplier (a few XOR gates, and pure wiring when $j_3=0$). This replaces the $15{:}1$ routing multiplexer that would otherwise sit in front of every tree input; with $225\times798$ inputs that multiplexer would cost roughly $9\times10^5$ LUTs, more than the trees it saves. For the size-1 and size-2 classes the register contents stay inside the subfield, because $j_3$ is $0$ or a multiple of $5$ for those classes.
+
+The datapath (Fig.~\ref{fig:tm_blocks}) consists of the unchanged sub-message converter, $798\times4$ state flip-flops, the multiplier bank, $225$ XOR trees of $798$ inputs each, and a $225$-bit registered output slice with \texttt{slice\_idx}, \texttt{slice\_valid} and \texttt{done} flags. Since only exponents $e_0(u)$ (those reachable at $i''=0$) are ever read, the bank is pruned from $11,500$ to $10,608$ output wires. A start request is accepted when the unit is idle or in its last busy cycle, so codewords can be issued back-to-back every $15$ cycles; the message is latched into the state registers on acceptance and need not be held.
+
+\begin{figure}[htbp]
+\centering
+\small
+\begin{tabular}{c}
+\texttt{msg} $\rightarrow$ \fbox{sub-message converter (0 LUT)} $\rightarrow$ \fbox{$S_k$ registers ($798\times4$ FF)} $\rightarrow$ \fbox{multiplier bank (10,608 wires)}\\[4pt]
+$\rightarrow$ \fbox{225 XOR trees (798 inputs, fixed wiring $e_0(u)$)} $\rightarrow$ \fbox{slice register (225 FF)} $\rightarrow$ \texttt{slice}, \texttt{slice\_idx}\\[4pt]
+feedback: $S_k \leftarrow S_k\,\alpha^{-j_3}$ each busy cycle; control: 4-bit cycle counter, \texttt{start/busy/accept/done}
+\end{tabular}
+\caption{Block structure of the time-multiplexed encoder.}
+\label{fig:tm_blocks}
+\end{figure}
+
+\section{Functional Verification and Linearity Proof}
+
+Because the encoder is an XOR-only linear network over $\text{GF}(2)$, the superposition principle holds:
+\begin{equation}
+\mathbf{c}(\mathbf{m}_1 \oplus \mathbf{m}_2) = \mathbf{c}(\mathbf{m}_1) \oplus \mathbf{c}(\mathbf{m}_2)
+\end{equation}
+Consequently, verifying the all-zero message plus all $K=3,163$ standard-basis unit vectors $\mathbf{e}_b = 1 \ll b$ ($b \in [0, 3162]$) against an independent mathematical reference constitutes a complete formal proof for all $2^{3,163}$ possible codewords.
+
+Both architectures were simulated in AMD Vivado 2026.1 \texttt{xsim}. The testbench verified all 3,163 unit vectors, all-zero, all-one, and 50 random vectors ($3,215$ test patterns total) against an independent separable 3-D IDFFFT golden model and a forward 3-D DFFFT spectral-null checker. Both designs achieved \textbf{100\% pass with 0 errors}.
+
+The time-multiplexed encoder was verified with a clocked testbench that reads the same golden vectors. The testbench collects the $15$ slices of each codeword, reassembles them as $c[15^2 i + 15 i' + \texttt{slice\_idx}]$ and compares with both the golden model and \texttt{bch3d\_enc\_opt}. Three passes were run for each vector set: gapped starts, back-to-back starts (one every $15$ cycles, with \texttt{msg} scrambled immediately after \texttt{start} to prove it was latched), and a synchronous reset in the middle of a codeword followed by a clean run. All three configurations $(N,T)=(7,1),(7,2),(15,2)$ passed in \texttt{xsim} with $0$ errors; for $N=15$ this included all $3,163$ unit vectors. After place and route, the post-route functional netlist of the $6$~ns run was simulated on $324$ vectors (all-zero, all-one, every tenth unit vector and the random vectors) in both the gapped and the back-to-back pass plus the reset test, again with $0$ errors.
+
+\section{FPGA Synthesis and Resource Utilization Results}
+
+Out-of-context synthesis (\texttt{-mode out\_of\_context}, \texttt{-flatten\_hierarchy none}) was conducted in AMD Vivado 2026.1 targeting the Virtex-7 \texttt{xc7v2000tflg1925-1} device ($1,221,600$ LUTs). Table~\ref{tab:synth_results} summarizes the full-chip resource utilization.
+
+\begin{table}[htbp]
+\centering
+\caption{Full-Chip Vivado 2026.1 Synthesis Results ($N=15, T=2$, $K=3163$, $N^3=3375$)}
+\label{tab:synth_results}
+\vspace{0.2cm}
+\begin{tabular}{lrrl}
+\toprule
+\textbf{Architecture / Module} & \textbf{LUTs} & \textbf{Device \%} & \textbf{Notes} \\
+\midrule
+\textbf{Baseline (Analytical, Unshared)} & $\sim 1,616,344$ & $132.31\%$ & Exceeds FPGA capacity \\
+\textbf{Baseline (\texttt{bch3d\_enc\_baseline})} & \textbf{1,156,681} & \textbf{94.69\%} & Per-point independent IDFFFT \\
+\midrule
+\textbf{Optimised (\texttt{bch3d\_enc\_opt})} & \textbf{544,597} & \textbf{44.58\%} & \textbf{$-52.92\%$ vs. Baseline} \\
+\midrule
+--- Sub-message Converter & 0 & 0.00\% & Pure wiring \& constants \\
+--- Multiplier Bank (\texttt{u\_mul\_bank}) & 4,597 & 0.38\% & $-99.77\%$ multiplier LUTs \\
+--- 3,375-Point XOR Adder Network & 540,000 & 44.20\% & $3,375 \times 160$ LUTs \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Time-Multiplexed Encoder: Synthesis, Place and Route}
+
+The time-multiplexed encoder was synthesised out-of-context for the same device and then placed and routed (\texttt{opt\_design}, \texttt{place\_design}, \texttt{route\_design}, default directives, \texttt{rebuilt} hierarchy flattening) with a single \texttt{clk} constraint and input and output delays of $20\%$ of the period. Table~\ref{tab:tm_results} summarises the results.
+
+\begin{table}[htbp]
+\centering
+\caption{Time-multiplexed encoder (\texttt{bch3d\_enc\_tm}, $N=15$, $T=2$) on \texttt{xc7v2000tflg1925-1}}
+\label{tab:tm_results}
+\vspace{0.2cm}
+\begin{tabular}{lrrrrl}
+\toprule
+\textbf{Run} & \textbf{LUTs} & \textbf{FFs} & \textbf{WNS} & \textbf{WHS} & \textbf{Outcome} \\
+\midrule
+Synthesis, \texttt{flatten none}, 10~ns & 42,772 & 3,417 & $+6.10$~ns & --- & pre-route estimate \\
+Routed, \texttt{rebuilt}, 6.0~ns & 17,197 & 3,416 & $+0.127$~ns & $+0.125$~ns & timing met, 0 routing errors \\
+Routed, \texttt{rebuilt}, 5.0~ns & 17,659 & 3,416 & $-0.316$~ns & $+0.118$~ns & timing not met \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+At $6$~ns ($167$~MHz) the design uses $1.41\%$ of the device LUTs and $0.14\%$ of its registers, with an estimated total on-chip power of $3.28$~W ($2.61$~W dynamic; the tool reports medium confidence because no switching activity was supplied). At one codeword per $15$ cycles this is $11.1$ million codewords per second, i.e.\ about $37.5$~Gbit/s of codeword output. Compared with the single-cycle optimised encoder the LUT count is $97\%$ lower ($17,197$ against $544,597$); the conservative \texttt{flatten none} figure of $42,772$ is still $92\%$ lower, and is $27$ times below the baseline.
+
+\paragraph{Timing and fanout.} Each multiplier-bank wire drives about $15.6$ tree inputs on average ($179,550$ inputs over $11,500$ wires in the unpruned view), so routing rather than logic dominates delay. At $5$~ns the worst path runs from an $S$ register through the bank and one tree to the slice register: $5.32$~ns with five logic levels and $87\%$ of the delay in routing. At $6$~ns the critical path is instead the \texttt{start} input driving the \texttt{accept} signal, which has a fanout of about $1,200$ (the state load select), plus the constrained input delay; the datapath meets timing with margin on that run. The maximum clock frequency of the datapath with the present design and tool settings is therefore close to $190$~MHz, but this was not explored further (no placement directives, no pipelining of \texttt{start}).
+
+\paragraph{Codeword assembly wrapper.} The core streams one slice per cycle. A wrapper (\texttt{bch3d\_enc\_tm\_asm}) assembles the full $3,375$-bit codeword: the $225$ slice bits feed $225$ groups of $15$-bit shift registers enabled by \texttt{slice\_valid}, so that after $15$ slices bit $c$ of group $15i+i'$ holds codeword bit $(i,i',c)$ in the flat layout $225i+15i'+i''$. This needs no decoder or multiplexer. A $3,375$-bit hold register loads from the shift groups one cycle after the final shift and makes \texttt{codeword} stable for $15$ cycles, with a one-cycle \texttt{cw\_valid} pulse two cycles after the core's \texttt{done}. Routed at $6$~ns it uses $17,196$ LUTs and $10,200$ flip-flops ($0.42\%$ of the device) with $+0.062$~ns setup and $+0.081$~ns hold slack and $3.35$~W estimated power; the added $6,784$ flip-flops leave the LUT count unchanged. The critical path moves to \texttt{slice\_valid} driving the clock enables of the $3,375$ shift flip-flops ($95\%$ routing delay), so timing margin at $6$~ns is small. The wrapper was verified for $N=15$ in \texttt{xsim} on all $3,170$ vectors (gapped, back-to-back and reset passes) and on the post-route netlist with $324$ sampled vectors, with no errors; both checks also confirm the \texttt{cw\_valid} timing and the $15$-cycle hold.
+
+\paragraph{Caveats.} The two LUT figures for the same RTL ($42,772$ and $17,197$) result from different flattening modes: with \texttt{flatten none} each of the $225$ tree modules is mapped separately (about $160$ LUT6 each), whereas \texttt{rebuilt} allows optimisation across module boundaries. The cause of the additional saving was not analysed. Timing and power results are from a single run per target period and are out-of-context; input and output delays are assumed values and no pin assignment or I/O timing was modelled.
+
+\section{Discussion}
+
+The experimental data reveals several key insights:
+\begin{enumerate}
+    \item \textbf{Single-Chip Viability}: The unoptimised baseline consumes 94.69\% of the largest available 7-series FPGA ($1,156,681$ LUTs), leaving virtually no headroom for clock distribution, I/O buffers, or peripheral memory controllers. In contrast, the optimised architecture requires only 44.58\% ($544,597$ LUTs), saving \textbf{612,084 LUTs} and making full system-on-chip integration practical.
+    \item \textbf{Decoupling Multipliers from Spatial Grid}: In conventional architectures, multiplier complexity scales as $O(N^3 \cdot N_{\text{CLASS}})$, demanding $1,976,400$ multiplier LUTs. The computation-class architecture decouples multiplication from the spatial grid, capping multiplier complexity to $\sum_{k} |E_k| = 11,500$ shared wires ($O(N \cdot N_{\text{CLASS}})$). This reduces the multiplier footprint to only \textbf{4,597 LUTs} (a \textbf{99.77\% reduction}).
+    \item \textbf{Dominance of Routing Trees}: In the optimised encoder, the multiplier bank represents only 0.84\% of total logic, while the 3,375 XOR adder trees account for 99.16\% of LUTs ($540,000$ LUTs). Further optimizations would therefore focus on hierarchical multi-point XOR sharing across 1-D lines or 2-D planes.
+    \item \textbf{Throughput versus Area Trade-off}: The time-multiplexed encoder (Section~\ref{sec:tm}) attacks exactly this dominant term. It reduces the number of trees from $3,375$ to $225$ at the cost of a $15\times$ lower input rate and $3,417$ flip-flops, and removes the need for routing multiplexers by rotating a $4$-bit sub-message register per class. Where the application needs fewer than one codeword per $15$ clock cycles (for example when the data source is slower than the fabric clock), it is the only variant that leaves most of the device free; the single-cycle design remains the right choice for a full-rate wire-speed stream. A fully pipelined or partially unrolled version between the two (for example $3$ or $5$ cycles per codeword) follows from the same exponent splitting and was not evaluated.
+    \item \textbf{Fanout Limits Frequency}: After routing, wire delay accounts for $87\%$ of the worst datapath delay, because each bank wire feeds many trees. Registering \texttt{start} and adding pipeline stages between the bank and the trees would be the first measures to raise the clock, but they were not applied here.
+\end{enumerate}
+
+\section{Conclusion}
+
+We have designed, formally verified, and synthesized a fully parallel 3-D BCH ($N=15, T=2$) spectral-domain encoder in AMD Vivado 2026.1. By mapping finite-field twiddle factors to cyclotomic computation classes, the architecture eliminates spatial multiplication redundancy. The resulting encoder achieves a \textbf{52.92\% overall reduction in LUTs} and a \textbf{99.77\% reduction in multiplier logic}, enabling wire-speed parallel encoding of 3,163 message bits to 3,375 codeword bits in a single clock cycle on a single FPGA. The time-multiplexed variant further reduces the post-route cost to $17,197$ LUTs and $3,416$ flip-flops at $167$~MHz on the same device, producing one codeword every $15$ cycles; its routed netlist reproduces the golden codewords with no errors. These resource and timing figures are out-of-context results from the Vivado default flow and should be confirmed in a full-chip implementation with real I/O constraints.
+
+\end{document}

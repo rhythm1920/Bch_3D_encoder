@@ -1,0 +1,31 @@
+Copyright 1986-2022 Xilinx, Inc. All Rights Reserved. Copyright 2022-2026 Advanced Micro Devices, Inc. All Rights Reserved.
+---------------------------------------------------------------------------------------------------------------------------------------------
+| Tool Version : Vivado v.2026.1 (win64) Build 6511674 Tue Jun 16 11:02:23 MDT 2026
+| Date         : Fri Oct 30 01:12:26 2026
+| Host         : Shantanu running 64-bit major release  (build 9200)
+| Command      : report_utilization -hierarchical -hierarchical_depth 2 -file build/pnr/pnr_util_hier_bch3d_enc_tm_asm_rebuilt_6.0ns.rpt
+| Design       : bch3d_enc_tm_asm
+| Device       : xc7v2000tflg1925-1
+| Speed File   : -1
+| Design State : Routed
+---------------------------------------------------------------------------------------------------------------------------------------------
+
+Utilization Design Information
+
+Table of Contents
+-----------------
+1. Utilization by Hierarchy
+
+1. Utilization by Hierarchy
+---------------------------
+
++----------------------+--------------+------------+------------+---------+------+-------+--------+--------+------------+
+|       Instance       |    Module    | Total LUTs | Logic LUTs | LUTRAMs | SRLs |  FFs  | RAMB36 | RAMB18 | DSP Blocks |
++----------------------+--------------+------------+------------+---------+------+-------+--------+--------+------------+
+| bch3d_enc_tm_asm     |        (top) |      17196 |      17196 |       0 |    0 | 10200 |      0 |      0 |          0 |
+|   (bch3d_enc_tm_asm) |        (top) |          1 |          1 |       0 |    0 |  6771 |      0 |      0 |          0 |
+|   u_core             | bch3d_enc_tm |      17195 |      17195 |       0 |    0 |  3429 |      0 |      0 |          0 |
++----------------------+--------------+------------+------------+---------+------+-------+--------+--------+------------+
+* Note: The sum of lower-level cells may be larger than their parent cells total, due to cross-hierarchy LUT combining
+
+

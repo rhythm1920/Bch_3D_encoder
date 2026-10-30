@@ -40,6 +40,9 @@ By exploiting $\gcd(j_1, j_2, j_3, 15)$ across each 3-D cyclotomic coset $C_k = 
 - [`model/gen_rtl.py`](model/gen_rtl.py): RTL and self-checking testbench generator for both:
   - **Baseline (`bch3d_enc_baseline`)**: Per-point independent IDFFFT evaluation (Report Fig. 2).
   - **Optimised (`bch3d_enc_opt`)**: Shared Computation-Class Multiplier Bank (`bch3d_mul_bank_*`) + routing network + per-point $N_{\text{CLASS}}$-input XOR adder trees (Report Fig. 3).
+- [`model/bch3d_tm.py`](model/bch3d_tm.py): Reference model of the planned time-multiplexed encoder (225 trees, 15 cycles); see [`docs/time_multiplexed_plan.md`](docs/time_multiplexed_plan.md).
+- [`scripts/gen_tb.py`](scripts/gen_tb.py) / [`tb/tb_bch3d_msg_to_submsg.v`](tb/tb_bch3d_msg_to_submsg.v): converter golden model and generated testbench.
+- [`Makefile`](Makefile) + [`.github/workflows/sim.yml`](.github/workflows/sim.yml): `make test` runs the model self-tests, converter sim and N=7 encoder sims (Verilator); CI also generates and cross-checks N=15,T=2.
 - [`scripts/sim.ps1`](scripts/sim.ps1): Vivado `xvlog` $\to$ `xelab` $\to$ `xsim` batch verification script.
 - [`scripts/vivado_ooc.tcl`](scripts/vivado_ooc.tcl): Vivado Out-of-Context (`-mode out_of_context`) batch synthesis and utilization report script targeting Virtex-7 `xc7v2000tflg1925-1`.
 - [`reports/`](reports/): Official Vivado 2026.1 synthesis utilization reports for `N=15, T=2` and `N=7, T=2`.
@@ -101,3 +104,41 @@ python model/gen_rtl.py --n 15 --t 2 --rtl-dir build/rtl --tb-dir build/tb --vec
   -source scripts/vivado_ooc.tcl -tclargs bch3d_enc_opt xc7v2000tflg1925-1 none reports `
   rtl/bch3d_msg_to_submsg.v build/rtl/bch3d_enc_opt.v
 ```
+
+---
+
+## 6. Time-Multiplexed Encoder (`bch3d_enc_tm`, branch `time-multiplexed`)
+
+225 XOR trees reused over 15 cycles instead of 3,375 trees (plan: [docs/time_multiplexed_plan.md](docs/time_multiplexed_plan.md),
+model: `model/bch3d_tm.py`). Cycle `c` emits the 15x15 slice `i''=c`; tree `(i,i')` always reads bank wire
+`e0 = -(i*j1 + i'*j2) mod 15`, and each class register `S_k` is multiplied by `alpha^(-j3)` every cycle, so no routing mux is needed.
+
+- Ports: `clk, rst, start, msg -> slice[224:0], slice_idx, slice_valid, done` (slices are registered, 1 cycle after the internal state).
+- `msg` is latched on `start` (it does **not** need to be held). `start` is accepted when idle or in the last busy cycle, giving 1 codeword per 15 cycles back-to-back.
+- Multiplier bank pruned to the `i''=0` exponents (10,608 wires for N=15).
+- Verification: `make enc-sim N=7 T=2` also runs `tb_bch3d_enc_tm_*` (gapped, back-to-back and mid-run-reset passes; checked against golden and `bch3d_enc_opt`). Also simulated with xsim: N=7 T=1, N=7 T=2, and N=15 T=2 (all 3,163 unit vectors + 5 random), all PASS.
+- Synthesis: `CLOCK_PERIOD_NS=10` makes `scripts/vivado_ooc.tcl` also write a post-synthesis timing report.
+
+### Place & route results (Vivado 2026.1, `xc7v2000tflg1925-1`, OOC, `rebuilt`, `scripts/vivado_pnr.tcl`; reports in `reports/tm/`)
+
+| Target clock | Slice LUTs | FFs | WNS | WHS | Status |
+|---|---:|---:|---:|---:|---|
+| 6.0 ns (167 MHz) | 17,197 | 3,416 | +0.127 ns | +0.125 ns | met, 0 routing errors, 3.28 W (medium confidence) |
+| 5.0 ns (200 MHz) | 17,659 | 3,416 | -0.316 ns | +0.118 ns | fails; worst path S reg -> bank -> tree -> slice reg, 5.3 ns, 87% routing delay |
+
+- Pre-route `flatten none` synthesis gave 42,772 LUTs; `rebuilt` lets Vivado optimise across the 225 tree modules (17.2k LUTs). Both are valid; the post-route netlist was simulated (324 sampled vectors, gapped + back-to-back + reset) with 0 errors.
+- Throughput at 6 ns: 1 codeword per 15 cycles = 11.1 Mcodeword/s (about 37.5 Gbit/s of codeword output).
+- Achievable clock about 190 MHz (5 ns target misses by 0.32 ns); the 6 ns critical path is `start` -> `accept` (fanout 1,218) -> S load, a control path that could be pipelined.
+
+### Assembly wrapper (`bch3d_enc_tm_asm`): full 3,375-bit codeword output (option B)
+
+Wraps the unchanged core. `slice` feeds 225 groups of 15-bit shift registers (group `i*15+i'`, enabled by `slice_valid`), so after 15 slices `cw_sr[g*15 + c]` = bit `(i,i',c)` of the flat codeword. A 3,375-bit hold register `codeword` loads from it one cycle after the last shift (`done_d`), and `cw_valid` pulses 2 cycles after the core's `done`. `codeword` is stable for 15 cycles, so a consumer can sample it any time after `cw_valid` without back-to-back hazards.
+
+| Run (routed, `rebuilt`, 6.0 ns) | LUTs | FFs | WNS | WHS | Power |
+|---|---:|---:|---:|---:|---:|
+| core `bch3d_enc_tm` | 17,197 | 3,416 | +0.127 ns | +0.125 ns | 3.28 W |
+| wrapper `bch3d_enc_tm_asm` | 17,196 | 10,200 | +0.062 ns | +0.081 ns | 3.35 W |
+
+- Verification (N=15 only): RTL xsim, all 3,170 vectors (gapped, back-to-back, mid-run reset) 0 errors; post-route netlist, 324 sampled vectors, 0 errors. Checks include `cw_valid == done` delayed by 2 cycles and the codeword held for 15 cycles.
+- New critical path: `slice_valid` -> clock-enable of the 3,375 shift FFs (95% routing). Registering/replicating that enable would be the first fix; not applied.
+- `make enc-tm-sim` also runs the wrapper testbench (CI/N=7); that Makefile path was not run locally.

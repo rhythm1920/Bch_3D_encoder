@@ -20,6 +20,14 @@ foreach vf $v_files {
 set t0 [clock seconds]
 synth_design -top $top_mod -part $part_name -mode out_of_context -flatten_hierarchy $flatten_mode
 set t1 [clock seconds]
+
+# Optional timing run for clocked tops (e.g. bch3d_enc_tm): CLOCK_PERIOD_NS=<ns> in the environment.
+# Post-synthesis (pre-route) estimate only.
+if {[info exists ::env(CLOCK_PERIOD_NS)] && [llength [get_ports -quiet clk]] > 0} {
+    create_clock -name clk -period $::env(CLOCK_PERIOD_NS) [get_ports clk]
+    report_timing_summary -delay_type max -max_paths 5 -file "$out_dir/timing_${top_mod}_${flatten_mode}.rpt"
+    puts "INFO: timing report written to $out_dir/timing_${top_mod}_${flatten_mode}.rpt"
+}
 puts [format "INFO: synth_design completed in %d seconds" [expr {$t1 - $t0}]]
 
 report_utilization -file "$out_dir/utilization_${top_mod}_${flatten_mode}.rpt"

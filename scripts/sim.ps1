@@ -3,6 +3,7 @@ param(
     [Parameter(Mandatory = $true)][string[]]$Files,    # Verilog sources (absolute or relative to repo root)
     [string]$WorkDir = "build\sim",                    # run directory (absolute, or relative to repo root)
     [string[]]$Defines = @(),
+    [switch]$Glbl,                                     # post-synthesis/route netlists: also elaborate work.glbl (add glbl.v to -Files)
     [string]$VivadoBin = "D:\Rhythm\2026.1\Vivado\bin"
 )
 # Vivado xsim batch flow: xvlog -> xelab -> xsim -R. Exit code 0 only if the log has PASS and no FAIL/ERROR.
@@ -20,7 +21,7 @@ try {
     $t0 = Get-Date
     & "$VivadoBin\xvlog.bat" --nolog --incr @defs @src > xvlog.log 2>&1
     if ($LASTEXITCODE -ne 0) { Get-Content xvlog.log | Select-String "ERROR" | Select-Object -First 20; throw "xvlog failed" }
-    & "$VivadoBin\xelab.bat" --nolog --debug off --relax --mt 8 -L unisims_ver -s "${Top}_snap" $Top > xelab.log 2>&1
+    & "$VivadoBin\xelab.bat" --nolog --debug off --relax --mt 8 -L unisims_ver -s "${Top}_snap" $Top @(if ($Glbl) { "work.glbl" }) > xelab.log 2>&1
     if ($LASTEXITCODE -ne 0) { Get-Content xelab.log | Select-String "ERROR" | Select-Object -First 20; throw "xelab failed" }
     $t1 = Get-Date
     & "$VivadoBin\xsim.bat" "${Top}_snap" -R --nolog > xsim.log 2>&1

@@ -1,0 +1,379 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Time-Multiplexed 3-D BCH Encoder, Explained</title>
+<style>
+:root{
+  --bg:#fbfbf9; --fg:#1d2025; --muted:#5d6572; --card:#ffffff; --line:#d9dce1;
+  --a:#2563eb; --b:#c2410c; --c:#15803d; --d:#7c3aed; --soft:#eef2fb; --code:#f3f4f6; --warn:#fff7e6;
+}
+@media (prefers-color-scheme: dark){
+  :root{ --bg:#14161a; --fg:#e7e9ee; --muted:#9aa3b2; --card:#1c1f25; --line:#343942;
+    --a:#7aa7ff; --b:#fb923c; --c:#4ade80; --d:#b794f6; --soft:#1f2635; --code:#22262d; --warn:#2b2417; }
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.6 system-ui,Segoe UI,Roboto,sans-serif}
+main{max-width:980px;margin:0 auto;padding:24px 16px 80px}
+h1{font-size:2rem;line-height:1.2;margin:.2em 0}
+h2{margin-top:2.4em;padding-top:.6em;border-top:1px solid var(--line);font-size:1.45rem}
+h3{margin-top:1.6em;font-size:1.1rem}
+p.lead{color:var(--muted);font-size:1.1rem}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin:14px 0}
+.note{background:var(--warn);border:1px solid var(--line);border-radius:10px;padding:10px 14px;margin:14px 0}
+code,pre{font-family:ui-monospace,Consolas,Menlo,monospace;font-size:.88rem}
+code{background:var(--code);padding:1px 5px;border-radius:4px}
+pre{background:var(--code);border:1px solid var(--line);border-radius:8px;padding:12px;overflow:auto;line-height:1.45}
+pre .k{color:var(--a)} pre .c{color:var(--muted)} pre .n{color:var(--b)}
+svg{width:100%;height:auto;display:block}
+svg text{fill:var(--fg);font:13px system-ui,sans-serif}
+svg .m{fill:var(--muted)}
+svg .box{fill:var(--soft);stroke:var(--a);stroke-width:1.5}
+svg .boxb{fill:var(--card);stroke:var(--b);stroke-width:1.5}
+svg .boxc{fill:var(--card);stroke:var(--c);stroke-width:1.5}
+svg .boxd{fill:var(--card);stroke:var(--d);stroke-width:1.5}
+svg .w{stroke:var(--muted);stroke-width:1.3;fill:none}
+svg .wa{stroke:var(--a);stroke-width:1.8;fill:none}
+svg .wb{stroke:var(--b);stroke-width:1.8;fill:none}
+svg .wc{stroke:var(--c);stroke-width:1.8;fill:none}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+table{border-collapse:collapse;width:100%;font-size:.92rem}
+th,td{border-bottom:1px solid var(--line);padding:6px 8px;text-align:left}
+th{color:var(--muted);font-weight:600}
+td.r,th.r{text-align:right}
+.demo label{display:inline-block;margin:4px 12px 4px 0;font-size:.9rem}
+.demo input{width:4.2em;padding:3px 5px;background:var(--card);color:var(--fg);border:1px solid var(--line);border-radius:5px}
+.demo input[type=range]{width:220px;padding:0}
+.ok{color:var(--c);font-weight:600} .bad{color:#dc2626;font-weight:600}
+.pill{display:inline-block;padding:0 8px;border-radius:99px;border:1px solid var(--line);font-size:.8rem;color:var(--muted)}
+</style>
+</head>
+<body>
+<main>
+
+<h1>Time-Multiplexed 3-D BCH Encoder, Explained</h1>
+<p class="lead">How 3,375 codeword bits are produced by only 225 XOR trees that are reused over 15 clock cycles, and how the Verilog implements it.</p>
+
+<div class="note"><b>Design status:</b> frozen. <code>bch3d_enc_tm</code> (N=15, T=2), verified in RTL and on the post-route netlist; routed on <code>xc7v2000t</code> at 6 ns with 17,197 LUTs and 3,416 FFs. See the results section at the bottom.</div>
+
+<h2>1. The problem in one picture</h2>
+<p>The encoder turns a <b>3,163-bit message</b> into a <b>15&times;15&times;15 cube of 3,375 code bits</b>. In the earlier "optimised" design every one of the 3,375 cube points has its own XOR tree that adds up <b>798 one-bit contributions</b> (one per message-carrying conjugate class). Those 3,375 trees are 540,000 LUTs, which is 99% of that design.</p>
+<p>The time-multiplexed design computes the cube <b>one 15&times;15 slice per clock cycle</b>. The same 225 trees are used again on every cycle, and each cycle's output is the slice at a different third coordinate <code>i''</code>.</p>
+
+<svg viewBox="0 0 900 250" role="img" aria-label="The cube is cut into 15 slices; each cycle one slice goes through the 225 trees">
+  <!-- cube slices -->
+  <g transform="translate(40,40)">
+    <g>
+      <rect x="0" y="40" width="110" height="110" class="box" style="fill:var(--card)"/>
+      <rect x="12" y="32" width="110" height="110" class="box" style="fill:var(--card)"/>
+      <rect x="24" y="24" width="110" height="110" class="box" style="fill:var(--card)"/>
+      <rect x="36" y="16" width="110" height="110" class="box" style="fill:var(--card)"/>
+      <rect x="48" y="8" width="110" height="110" class="box" style="fill:var(--card)"/>
+      <rect x="60" y="0" width="110" height="110" class="boxb" style="fill:var(--soft)"/>
+    </g>
+    <text x="0" y="175" class="m">3,375 bits = 15 slices of 15&times;15</text>
+    <text x="0" y="193" class="m">slice index = i'' (the cycle number)</text>
+  </g>
+  <path d="M235 95 H330" class="wb"/><polygon points="330,89 342,95 330,101" style="fill:var(--b)"/>
+  <text x="240" y="85" class="m">cycle c</text>
+  <rect x="345" y="55" width="200" height="90" rx="8" class="box"/>
+  <text x="445" y="88" text-anchor="middle" style="font-weight:600">225 XOR trees</text>
+  <text x="445" y="108" text-anchor="middle" class="m">one per (i, i')</text>
+  <text x="445" y="126" text-anchor="middle" class="m">798 inputs each</text>
+  <path d="M545 100 H640" class="wb"/><polygon points="640,94 652,100 640,106" style="fill:var(--b)"/>
+  <rect x="655" y="60" width="200" height="80" rx="8" class="boxc"/>
+  <text x="755" y="94" text-anchor="middle" style="font-weight:600">slice register</text>
+  <text x="755" y="114" text-anchor="middle" class="m">225 bits + slice_idx</text>
+  <text x="440" y="190" text-anchor="middle" class="m">cycle 0 &rarr; slice 0, cycle 1 &rarr; slice 1, &hellip; cycle 14 &rarr; slice 14</text>
+</svg>
+
+<h2>2. The trick: make the trees "see" a moving message</h2>
+
+<h3>2.1 What each tree adds up</h3>
+<p>For every conjugate class <i>k</i> (798 of them) the model stores a 4-bit field element <b>S<sub>k</sub></b>, built from the message. Class <i>k</i> has a representative frequency <b>(j<sub>1</sub>, j<sub>2</sub>, j<sub>3</sub>)</b>. The contribution of class <i>k</i> to code bit <b>(i, i', i'')</b> is a single bit:</p>
+<div class="card"><code>Tr( S<sub>k</sub> &middot; &alpha;<sup>e</sup> )</code> &nbsp; with &nbsp; <code>e = &minus;(i&middot;j<sub>1</sub> + i'&middot;j<sub>2</sub> + i''&middot;j<sub>3</sub>) mod 15</code></div>
+<p>The code bit is the XOR of these 798 bits. "Tr(&middot;)" is just an XOR of a few bits of the 4-bit product, so the bank of all <code>Tr(S&middot;&alpha;<sup>e</sup>)</code> values is a pile of small XORs.</p>
+
+<h3>2.2 Fix the cycle axis</h3>
+<p>Let the cycle be <code>c = i''</code> and the tree be <code>u = (i, i')</code>. Then</p>
+<div class="card"><code>e = &minus;(i&middot;j<sub>1</sub> + i'&middot;j<sub>2</sub>) &minus; c&middot;j<sub>3</sub> = e0(u) &minus; c&middot;j<sub>3</sub></code></div>
+<p>The part <code>e0(u)</code> depends only on the tree, so it is <b>fixed wiring</b>. Only the term <code>&minus;c&middot;j<sub>3</sub></code> changes with the cycle. A field multiplication by &alpha;<sup>&minus;c&middot;j<sub>3</sub></sup> can be moved from the exponent onto S:</p>
+<div class="card"><code>Tr( S&middot;&alpha;<sup>e0 &minus; c&middot;j3</sup> ) = Tr( ( S&middot;&alpha;<sup>&minus;c&middot;j3</sup> ) &middot; &alpha;<sup>e0</sup> )</code></div>
+<p>So instead of routing a different bank wire to each tree every cycle (a 15-to-1 mux in front of 179,550 tree inputs, which would cost more LUTs than it saves), we keep a <b>4-bit register per class</b> and update it every cycle:</p>
+<div class="card"><code>S<sub>k</sub> &larr; S<sub>k</sub> &middot; &alpha;<sup>&minus;j3</sup></code> &nbsp; (a constant multiplier: a few XORs; <b>pure wiring if j<sub>3</sub> = 0</b>)</div>
+<p>After <i>c</i> cycles the register holds <code>S&middot;&alpha;<sup>&minus;c&middot;j3</sup></code>, and every tree, still wired to the same bank wire <code>e0(u)</code>, produces exactly the bit that belongs at <code>(i, i', c)</code>.</p>
+
+<h3>2.3 Try it</h3>
+<p>This runs the same arithmetic in GF(16) (<code>&alpha;<sup>4</sup> = &alpha; + 1</code>) in your browser. It compares the "direct" product with the rotating-register product.</p>
+<div class="card demo" id="demo">
+  <label>j<sub>1</sub> <input id="j1" type="number" min="0" max="14" value="1"></label>
+  <label>j<sub>2</sub> <input id="j2" type="number" min="0" max="14" value="3"></label>
+  <label>j<sub>3</sub> <input id="j3" type="number" min="0" max="14" value="13"></label>
+  <label>S (1&ndash;15) <input id="S" type="number" min="1" max="15" value="9"></label><br>
+  <label>tree i <input id="ti" type="number" min="0" max="14" value="4"></label>
+  <label>tree i' <input id="tj" type="number" min="0" max="14" value="7"></label>
+  <label>cycle c <input id="cc" type="range" min="0" max="14" value="5"> <b id="ccv">5</b></label>
+  <table style="margin-top:8px">
+    <tr><th>quantity</th><th>value</th></tr>
+    <tr><td>direct exponent <code>e = &minus;(i&middot;j1 + i'&middot;j2 + c&middot;j3) mod 15</code></td><td id="o_e"></td></tr>
+    <tr><td>direct product <code>S&middot;&alpha;<sup>e</sup></code></td><td id="o_direct"></td></tr>
+    <tr><td>tree's fixed exponent <code>e0 = &minus;(i&middot;j1 + i'&middot;j2) mod 15</code></td><td id="o_e0"></td></tr>
+    <tr><td>register after <i>c</i> cycles <code>S(c) = S&middot;&alpha;<sup>&minus;c&middot;j3</sup></code></td><td id="o_Sc"></td></tr>
+    <tr><td>time-multiplexed product <code>S(c)&middot;&alpha;<sup>e0</sup></code></td><td id="o_tm"></td></tr>
+    <tr><td>equal?</td><td id="o_eq"></td></tr>
+  </table>
+  <p class="m" style="margin:.6em 0 0;color:var(--muted)">Values are shown as 4-bit binary (bit 3 first). The real hardware then takes a trace of the product, which is the same XOR of a few bits for both sides, so equal products give equal code bits.</p>
+</div>
+
+<h2>3. The block diagram</h2>
+<svg viewBox="0 0 920 360" role="img" aria-label="Block diagram of the time-multiplexed encoder">
+  <defs><marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" style="fill:var(--muted)"/></marker></defs>
+  <!-- msg -->
+  <text x="15" y="60" style="font-weight:600">msg</text><text x="15" y="78" class="m">3,163 bit</text>
+  <path d="M75 62 H110" class="w" marker-end="url(#ar)"/>
+  <rect x="112" y="35" width="120" height="55" rx="8" class="box"/>
+  <text x="172" y="58" text-anchor="middle" style="font-weight:600">msg_to_submsg</text>
+  <text x="172" y="77" text-anchor="middle" class="m">0 LUTs (wiring)</text>
+  <path d="M232 62 H275" class="w" marker-end="url(#ar)"/>
+  <text x="240" y="52" class="m">sub_msg</text>
+  <!-- S regs -->
+  <rect x="277" y="25" width="150" height="190" rx="8" class="boxb"/>
+  <text x="352" y="50" text-anchor="middle" style="font-weight:600">S registers</text>
+  <text x="352" y="68" text-anchor="middle" class="m">798 &times; 4 FF = 3,192</text>
+  <rect x="297" y="85" width="110" height="34" rx="5" class="box"/><text x="352" y="107" text-anchor="middle">S_k (class k)</text>
+  <rect x="297" y="150" width="110" height="46" rx="5" class="boxd"/><text x="352" y="170" text-anchor="middle">&times; &alpha;<tspan dy="-5" font-size="10">-j3</tspan></text><text x="352" y="188" text-anchor="middle" class="m" style="font-size:11px">S_rot</text>
+  <path d="M352 119 V150" class="w" marker-end="url(#ar)"/>
+  <path d="M297 173 H280 V102 H297" class="wb" marker-end="url(#ar)"/>
+  <text x="283" y="228" class="m">load (accept) / rotate (busy)</text>
+  <!-- bank -->
+  <path d="M427 100 H470" class="w" marker-end="url(#ar)"/>
+  <rect x="472" y="35" width="130" height="155" rx="8" class="box"/>
+  <text x="537" y="62" text-anchor="middle" style="font-weight:600">multiplier bank</text>
+  <text x="537" y="82" text-anchor="middle" class="m">Tr(S&middot;&alpha;<tspan dy="-4" font-size="10">e</tspan><tspan dy="4">)</tspan></text>
+  <text x="537" y="104" text-anchor="middle" class="m">10,608 wires</text>
+  <text x="537" y="122" text-anchor="middle" class="m">only e = e0 values</text>
+  <text x="537" y="140" text-anchor="middle" class="m">small XORs of S bits</text>
+  <!-- trees -->
+  <path d="M602 100 H645" class="w" marker-end="url(#ar)"/>
+  <text x="598" y="90" class="m">mul_out</text>
+  <rect x="647" y="35" width="130" height="155" rx="8" class="boxc"/>
+  <text x="712" y="62" text-anchor="middle" style="font-weight:600">225 trees</text>
+  <text x="712" y="82" text-anchor="middle" class="m">u = (i, i')</text>
+  <text x="712" y="104" text-anchor="middle" class="m">798-input XOR</text>
+  <text x="712" y="122" text-anchor="middle" class="m">fixed wiring from</text>
+  <text x="712" y="140" text-anchor="middle" class="m">wire e0(u)</text>
+  <path d="M777 100 H815" class="w" marker-end="url(#ar)"/>
+  <rect x="817" y="65" width="90" height="70" rx="8" class="boxb"/>
+  <text x="862" y="92" text-anchor="middle" style="font-weight:600">slice reg</text>
+  <text x="862" y="112" text-anchor="middle" class="m">225 FF</text>
+  <text x="862" y="130" text-anchor="middle" class="m">+ idx, valid</text>
+  <!-- control -->
+  <rect x="277" y="262" width="400" height="70" rx="8" class="boxd"/>
+  <text x="477" y="287" text-anchor="middle" style="font-weight:600">control: start, busy, cyc (4-bit counter)</text>
+  <text x="477" y="308" text-anchor="middle" class="m">accept = start &amp;&amp; (!busy || last)    last = busy &amp;&amp; cyc == 14</text>
+  <path d="M352 262 V230" class="wb" marker-end="url(#ar)"/>
+  <path d="M677 297 H862 V135" class="w" marker-end="url(#ar)"/>
+  <text x="700" y="290" class="m">slice_valid, slice_idx, done</text>
+  <text x="15" y="300" style="font-weight:600">start</text>
+  <path d="M60 297 H275" class="w" marker-end="url(#ar)"/>
+</svg>
+<div class="grid">
+  <div class="card"><b>Fully parallel part</b><br>Converter and multiplier bank are unchanged in function and always active. Only the <i>input</i> to the bank (S) changes each cycle.</div>
+  <div class="card"><b>Reused part</b><br>225 trees (36,000 LUTs before optimisation) are fed by the same wires every cycle. That is the saving.</div>
+  <div class="card"><b>Cost</b><br>One codeword every 15 cycles instead of every cycle. 3,192 FFs for S and 225 FFs for the output slice.</div>
+</div>
+
+<h2>4. The wiring, concretely</h2>
+<p>The key point is that <b>no wire ever moves</b>. A tree's 798 inputs are tied once, at design time, to the bank wire for exponent <code>e0(u)</code> of each class. Here is one class (a "15-computation" class, so 15 bank wires) feeding three trees:</p>
+<svg viewBox="0 0 900 330" role="img" aria-label="One class register, 15 bank wires, three trees picking wires by e0">
+  <rect x="20" y="130" width="120" height="70" rx="8" class="boxb"/>
+  <text x="80" y="160" text-anchor="middle" style="font-weight:600">S_k register</text>
+  <text x="80" y="180" text-anchor="middle" class="m">4 bits</text>
+  <path d="M140 165 H200" class="w" marker-end="url(#ar)"/>
+  <rect x="202" y="25" width="160" height="280" rx="8" class="box"/>
+  <text x="282" y="48" text-anchor="middle" style="font-weight:600">bank, class k</text>
+  <g class="m">
+    <text x="215" y="75">&alpha;^0 &rarr; w0</text><text x="215" y="98">&alpha;^1 &rarr; w1</text><text x="215" y="121">&alpha;^2 &rarr; w2</text>
+    <text x="215" y="144">&alpha;^3 &rarr; w3</text><text x="215" y="167">&hellip;</text><text x="215" y="190">&alpha;^7 &rarr; w7</text>
+    <text x="215" y="213">&hellip;</text><text x="215" y="236">&alpha;^11 &rarr; w11</text><text x="215" y="259">&hellip;</text><text x="215" y="282">&alpha;^14 &rarr; w14</text>
+  </g>
+  <!-- trees -->
+  <rect x="560" y="40" width="150" height="50" rx="8" class="boxc"/><text x="635" y="62" text-anchor="middle" style="font-weight:600">tree (0,0)</text><text x="635" y="80" text-anchor="middle" class="m">e0 = 0</text>
+  <rect x="560" y="140" width="150" height="50" rx="8" class="boxc"/><text x="635" y="162" text-anchor="middle" style="font-weight:600">tree (4,7)</text><text x="635" y="180" text-anchor="middle" class="m">e0 = &minus;(4j1+7j2) mod 15</text>
+  <rect x="560" y="240" width="150" height="50" rx="8" class="boxc"/><text x="635" y="262" text-anchor="middle" style="font-weight:600">tree (1,2)</text><text x="635" y="280" text-anchor="middle" class="m">e0 = &minus;(j1+2j2) mod 15</text>
+  <path d="M362 70 C460 70 460 65 560 65" class="wc"/>
+  <path d="M362 190 C460 190 460 165 560 165" class="wa"/>
+  <path d="M362 236 C460 236 460 265 560 265" class="wb"/>
+  <text x="440" y="60" class="m">w0</text><text x="440" y="195" class="m">w7</text><text x="430" y="252" class="m">w11</text>
+  <path d="M710 65 H760" class="w"/><path d="M710 165 H760" class="w"/><path d="M710 265 H760" class="w"/>
+  <text x="765" y="69">slice[0]</text><text x="765" y="169">slice[4*15+7]</text><text x="765" y="269">slice[1*15+2]</text>
+  <text x="450" y="320" text-anchor="middle" class="m">Each tree has 798 such inputs, one per class. The example shows three of them for a single class (the picked wires are illustrative).</text>
+</svg>
+<p>Each bank wire fans out to roughly 15.6 tree inputs on average (179,550 tree inputs over 11,500 wires). That fanout is what dominates routing delay: at 5 ns the worst path is 87% wire delay.</p>
+
+<h3>Special classes</h3>
+<ul>
+  <li><b><code>j<sub>3</sub> = 0</code></b> (for example class 0 and every class where the third frequency is zero): <code>S_rot = S</code>, so the register just holds its value (wires only).</li>
+  <li><b><code>j<sub>1</sub> = j<sub>2</sub> = 0</code></b> (classes 0 to 2 in the generated file): <code>e0</code> is always 0, so they need only <b>one</b> bank wire, and all variation comes from the register rotation.</li>
+  <li><b>Small subfield classes</b> (size 1 and 2): S stays inside GF(2) or GF(4) because <code>j<sub>3</sub></code> is 0 or a multiple of 5, so the 4-bit register can still be used with the same trace masks.</li>
+</ul>
+
+<h2>5. Control and timing</h2>
+<svg viewBox="0 0 900 300" role="img" aria-label="Timing diagram showing start, busy, cyc, slice_valid, slice_idx, done">
+  <g class="m">
+    <text x="10" y="40">clk</text><text x="10" y="80">start</text><text x="10" y="120">accept</text><text x="10" y="160">busy</text>
+    <text x="10" y="200">cyc</text><text x="10" y="240">slice_valid</text><text x="10" y="278">slice_idx / done</text>
+  </g>
+  <g transform="translate(100,0)">
+    <!-- clock -->
+    <path d="M0 45 h25 v-20 h25 v20 h25 v-20 h25 v20 h25 v-20 h25 v20 h25 v-20 h25 v20 h25 v-20 h25 v20 h25 v-20 h25 v20 h25 v-20 h25 v20 h25 v-20 h25 v20 h25 v-20 h25 v20 h25" class="w"/>
+    <!-- start pulse in cycle 1 -->
+    <path d="M0 90 H50 V70 H100 V90 H800" class="wb"/>
+    <path d="M0 130 H50 V110 H100 V130 H800" class="wb"/>
+    <path d="M0 170 H100 V150 H600 V170 H800" class="wa"/>
+    <!-- cyc -->
+    <path d="M0 210 H800" class="w"/>
+    <g class="m" style="font-size:11px">
+      <text x="103" y="205">0</text><text x="153" y="205">1</text><text x="203" y="205">2</text><text x="253" y="205">3</text><text x="293" y="205">&hellip;</text><text x="553" y="205">14</text>
+    </g>
+    <path d="M0 250 H150 V230 H650 V250 H800" class="wc"/>
+    <g class="m" style="font-size:11px">
+      <text x="153" y="278">0</text><text x="203" y="278">1</text><text x="253" y="278">2</text><text x="303" y="278">&hellip;</text><text x="603" y="278">14 (done)</text>
+    </g>
+    <text x="102" y="64" class="m" style="font-size:11px">msg latched into S</text>
+    <text x="102" y="188" class="m" style="font-size:11px">busy: S rotates each cycle</text>
+    <text x="150" y="226" class="m" style="font-size:11px">slice reg is 1 cycle behind</text>
+  </g>
+</svg>
+<ul>
+  <li><b>start</b> may be pulsed for one cycle with a valid <code>msg</code>. The sub-message is <b>latched into S</b>, so <code>msg</code> may change right afterwards.</li>
+  <li><b>accept</b> = <code>start && (!busy || last)</code>. A new <code>start</code> is accepted when idle or in the very last busy cycle, so codewords can follow each other every 15 cycles with no gap.</li>
+  <li>The 225-bit slice output is registered, so <code>slice_valid</code> and <code>slice_idx</code> lag the internal state by one cycle. The testbench assembles <code>cw[i*225 + i'*15 + slice_idx] = slice[i*15 + i']</code>.</li>
+  <li><b>done</b> = <code>slice_valid && slice_idx == 14</code>.</li>
+  <li><b>rst</b> clears <code>busy</code>, <code>cyc</code>, <code>slice_valid</code>, <code>slice_idx</code>. The datapath (S, slice) is not reset because it is not observable while <code>slice_valid</code> is low.</li>
+</ul>
+
+<h2>6. Walking through the code</h2>
+<p>All RTL is generated by <code>generate_tm_rtl()</code> in <code>model/gen_rtl.py</code>, from the Python golden model (<code>model/bch3d.py</code>) and the TM reference model (<code>model/bch3d_tm.py</code>). The snippets below are real output (<code>build/rtl/bch3d_enc_tm.v</code>, N=15, T=2).</p>
+
+<h3>6.1 Generator: which bank wires exist</h3>
+<pre><span class="c"># only exponents reachable at i''=0 get a bank wire (10,608 instead of 11,500)</span>
+for c in m.classes:
+    e0s = sorted({(-(ia*c.rep[0] + ib*c.rep[1])) % N for ia in range(N) for ib in range(N)})
+    for e in e0s:
+        wire_map[(c.idx, e)] = nw;  nw += 1</pre>
+
+<h3>6.2 Bank: small XORs of S bits</h3>
+<pre>module bch3d_tm_bank_n15_t2 (input wire [3191:0] S, output wire [10607:0] mul_out);
+    assign mul_out[0]  = S[0];                  <span class="c">// class 0 alpha^0</span>
+    assign mul_out[1]  = S[7];                  <span class="c">// class 1 alpha^0</span>
+    assign mul_out[14] = S[20] ^ S[22] ^ S[23]; <span class="c">// class 5 alpha^9</span></pre>
+<p>The mask for each <code>(class, e)</code> pair is <code>trace_masks[e]</code> from the model: bit <i>r</i> of S is XORed in if the trace of <code>&alpha;<sup>r</sup>&middot;&alpha;<sup>e</sup></code> has bit 0 set. Class <i>k</i> owns <code>S[4k +: 4]</code>.</p>
+
+<h3>6.3 Rotation: a constant GF multiplier per class</h3>
+<pre><span class="c"># generator</span>
+g    = m.exp[(-c.rep[2]) % N]                 <span class="c"># alpha^(-j3)</span>
+cols = [m.mul(1 &lt;&lt; r, g) for r in range(M)]    <span class="c"># image of each basis bit</span>
+<span class="c"># output bit q = XOR of input bits r whose image has bit q set</span>
+
+<span class="c">// generated Verilog</span>
+assign S_rot[0] = S[0];            <span class="c">// class 0: j3 = 0  -&gt; identity (wires)</span>
+assign S_rot[4] = S[4] ^ S[5];     <span class="c">// class 1: j3 = 1  -&gt; real multiplier</span>
+assign S_rot[5] = S[6];
+assign S_rot[7] = S[4];</pre>
+
+<h3>6.4 Trees: fixed wiring, one instance per (i, i')</h3>
+<pre>bch3d_tm_tree_n15_t2 u_tree_1_2 (
+    .in_bits({mul_out[0], mul_out[1], mul_out[2], mul_out[3], mul_out[4], mul_out[18], ...}),
+    .out_bit(slice_c[1*15 + 2]));
+
+module bch3d_tm_tree_n15_t2 (input wire [797:0] in_bits, output wire out_bit);
+    assign out_bit = ^in_bits;      <span class="c">// 798-input XOR, about 160 LUT6</span>
+endmodule</pre>
+<p>The first five inputs are the classes with <code>j1 = j2 = 0</code> (a single wire each, same in every tree). The sixth onward changes from tree to tree because <code>e0</code> differs.</p>
+
+<h3>6.5 State machine and datapath</h3>
+<pre>wire last   = busy &amp;&amp; (cyc == 4'd14);
+wire accept = start &amp;&amp; (!busy || last);
+
+always @(posedge clk) begin
+    if (rst) begin busy &lt;= 0; cyc &lt;= 0; slice_valid &lt;= 0; slice_idx &lt;= 0; end
+    else begin
+        slice_valid &lt;= busy;                 <span class="c">// output stage lags by one cycle</span>
+        slice_idx   &lt;= cyc;
+        if (accept)        begin busy &lt;= 1; cyc &lt;= 0; end
+        else if (last)     begin busy &lt;= 0; cyc &lt;= 0; end
+        else if (busy)     cyc &lt;= cyc + 1;
+    end
+    if (accept)    S &lt;= sub_msg;             <span class="c">// latch the message</span>
+    else if (busy) S &lt;= S_rot;               <span class="c">// rotate: S(c+1) = S(c) * alpha^-j3</span>
+    slice &lt;= slice_c;                        <span class="c">// 225 tree outputs</span>
+end
+assign done = slice_valid &amp;&amp; (slice_idx == 4'd14);</pre>
+
+<h3>6.6 Testbench</h3>
+<p><code>generate_tm_testbench()</code> writes a clocked testbench that reads the same golden vectors as the other encoders. It runs three passes: gapped starts, back-to-back starts (one every 15 cycles, <code>msg</code> scrambled right after <code>start</code> to prove it was latched), and a reset in the middle of a codeword followed by a clean run. A monitor assembles the 15 slices and compares against the golden codeword and against <code>bch3d_enc_opt</code>.</p>
+
+<h2>7. Why it is correct</h2>
+<ul>
+  <li><b>Algebra:</b> the identity in 2.2 is exact for every field element, so <code>S(c)&middot;&alpha;<sup>e0</sup> = S&middot;&alpha;<sup>e</sup></code> (try the demo above).</li>
+  <li><b>Model:</b> <code>model/bch3d_tm.py</code> matches the independent 3-D IDFFFT on all unit vectors (N=7) and random and all-0/all-1 messages (N=15).</li>
+  <li><b>RTL:</b> xsim passes for N=7 T=1, N=7 T=2 and N=15 T=2 (all 3,163 unit vectors plus random ones), including back-to-back and reset tests.</li>
+  <li><b>Routed netlist:</b> the post-route functional netlist (6 ns run) passes 324 sampled vectors with 0 errors. Because the encoder is linear over GF(2), the unit-vector tests cover all messages.</li>
+</ul>
+
+<h2>7b. Getting the whole codeword out: the assembly wrapper</h2>
+<p>The core only streams slices. <code>bch3d_enc_tm_asm</code> wraps it and collects them. Think of the 3,375 bits as <b>225 small shift registers of 15 bits</b>, one per tree <code>(i, i')</code>. Every cycle the tree's new bit enters at one end and the older bits move along. After 15 cycles the register for tree <code>(i, i')</code> holds that tree's bit for every <code>i''</code>, already in the right place of the flat codeword.</p>
+<pre>for each g = i*15 + i':
+    if (slice_valid) begin
+        cw_sr[g*15 +: 14] &lt;= cw_sr[g*15+1 +: 14];   <span class="c">// shift towards bit 0</span>
+        cw_sr[g*15 + 14]  &lt;= slice[g];               <span class="c">// new bit enters at the top</span>
+    end
+<span class="c">// the bit from cycle 0 ends at position 0, cycle 14 at position 14: i'' = position</span>
+if (done_d) codeword &lt;= cw_sr;                       <span class="c">// hold register, stable 15 cycles</span>
+cw_valid &lt;= done_d;                                 <span class="c">// 1-cycle pulse, 2 cycles after done</span></pre>
+<p>No decoder or mux is needed, only flip-flops with a clock enable. The hold register matters for back-to-back use: without it, the shift groups start receiving the next codeword's first slice right after the last one, so the full codeword would exist for one cycle only. Cost: +6,784 FFs (10,200 total), LUTs unchanged (17,196). Routed at 6 ns: setup +0.062 ns, hold +0.081 ns; the critical path is now <code>slice_valid</code> driving the 3,375 clock enables.</p>
+
+<h2>8. Results</h2>
+<table>
+  <tr><th>Design</th><th class="r">Slice LUTs</th><th class="r">FFs</th><th>Codeword rate</th></tr>
+  <tr><td>Baseline (<code>bch3d_enc_baseline</code>), synthesis</td><td class="r">1,156,681</td><td class="r">0</td><td>1 per cycle (combinational)</td></tr>
+  <tr><td>Optimised (<code>bch3d_enc_opt</code>), synthesis</td><td class="r">544,597</td><td class="r">0</td><td>1 per cycle (combinational)</td></tr>
+  <tr><td>Time-multiplexed, synthesis (<code>flatten none</code>)</td><td class="r">42,772</td><td class="r">3,417</td><td>1 per 15 cycles</td></tr>
+  <tr><td>Time-multiplexed, routed @ 6 ns (<code>rebuilt</code>)</td><td class="r">17,197</td><td class="r">3,416</td><td>1 per 15 cycles = 11.1 M/s</td></tr>
+  <tr><td>Time-multiplexed, routed @ 5 ns</td><td class="r">17,659</td><td class="r">3,416</td><td>fails by 0.316 ns</td></tr>
+</table>
+<ul>
+  <li>6 ns: setup +0.127 ns, hold +0.125 ns, no routing errors, 3.28 W (power confidence "Medium", no switching-activity data supplied).</li>
+  <li>At 6 ns the critical path is the <code>start</code> input into <code>accept</code> (fanout about 1,200) into the S load. At 5 ns the limiting path is S &rarr; bank &rarr; tree &rarr; slice register, 5.3 ns with 87% routing.</li>
+  <li>The two LUT figures for the same RTL (42.8k vs 17.2k) differ because <code>flatten none</code> keeps the 225 tree modules separate, while <code>rebuilt</code> lets Vivado optimise across them. Which one reflects the true minimum was not investigated here.</li>
+</ul>
+
+</main>
+
+<script>
+// GF(16), alpha^4 = alpha + 1
+const EXP=[],LOG=[];{let x=1;for(let i=0;i<15;i++){EXP[i]=x;LOG[x]=i;x<<=1;if(x&16)x^=0b10011;}}
+const mod15=n=>((n%15)+15)%15;
+const mul=(a,b)=>(a===0||b===0)?0:EXP[(LOG[a]+LOG[b])%15];
+const bin=v=>v.toString(2).padStart(4,'0');
+function upd(){
+  const g=id=>parseInt(document.getElementById(id).value)||0;
+  const j1=g('j1'),j2=g('j2'),j3=g('j3'),i=g('ti'),ip=g('tj'),c=g('cc');
+  let S=g('S'); if(S<1||S>15)S=1;
+  document.getElementById('ccv').textContent=c;
+  const e=mod15(-(i*j1+ip*j2+c*j3)), e0=mod15(-(i*j1+ip*j2));
+  const direct=mul(S,EXP[e]);
+  const Sc=mul(S,EXP[mod15(-c*j3)]);
+  const tm=mul(Sc,EXP[e0]);
+  const set=(id,t)=>document.getElementById(id).innerHTML=t;
+  set('o_e',e); set('o_direct',bin(direct)+' &nbsp;(&alpha;<sup>'+LOG[direct]+'</sup>)');
+  set('o_e0',e0); set('o_Sc',bin(Sc)); set('o_tm',bin(tm)+' &nbsp;(&alpha;<sup>'+LOG[tm]+'</sup>)');
+  set('o_eq',direct===tm?'<span class="ok">yes</span>':'<span class="bad">NO</span>');
+}
+document.querySelectorAll('#demo input').forEach(el=>el.addEventListener('input',upd));
+upd();
+</script>
+</body>
+</html>

@@ -51,6 +51,11 @@ def _s_mask_expr(s_var: str, mask: int, M: int) -> str:
     return " ^ ".join(bits)
 
 
+def _s_mask_off(s_var: str, off: int, mask: int, M: int) -> str:
+    bits = [f"{s_var}[{off + r}]" for r in range(M) if (mask >> r) & 1]
+    return " ^ ".join(bits) if bits else "1'b0"
+
+
 def generate_baseline_rtl(m: BCH3DModel, out_path: str):
     """
     Emit `bch3d_enc_baseline.v` for parameters (m.N, m.T, m.prim_poly).
@@ -161,7 +166,7 @@ def generate_opt_rtl(m: BCH3DModel, out_path: str):
     ]
 
     # Emit one Multiplier Unit module per unique (class_size, tuple(distinct_exps)) signature
-    # so identical computation-class units share a clean module definition!
+    # so identical computation-class units share a module definition.
     sig_to_mod = {}
     for c in m.classes:
         sig = (c.size, tuple(c.distinct_exps))
@@ -246,6 +251,379 @@ def generate_opt_rtl(m: BCH3DModel, out_path: str):
         f.write("\n".join(lines))
 
 
+def tm_mod_name(m: BCH3DModel) -> str:
+    return "bch3d_enc_tm" if (m.N == 15 and m.T == 2) else f"bch3d_enc_tm_n{m.N}_t{m.T}"
+
+
+def generate_tm_rtl(m: BCH3DModel, out_path: str):
+    """
+    Emit `bch3d_enc_tm[_nX_tY].v`: time-multiplexed encoder (see model/bch3d_tm.py).
+    Cycle c computes the N x N slice i'' = c with N^2 XOR trees (tree u = (i, i')).
+    Tree u always reads bank wire e0(u) = -(i*j1 + i'*j2) mod N; the per-class register S_k is
+    rotated by alpha^(-j3) each cycle so that the bank output equals the (i, i', c) twiddle product.
+    The sub-message is latched into S on `start`, so `msg` need not be held.
+    """
+    N, T, M, K, NC = m.N, m.T, m.M, m.K, m.N_CLASS
+    NN = N * N
+    tag = f"n{N}_t{T}"
+    mod_name = tm_mod_name(m)
+
+    # Bank wires: only exponents reachable at i'' = 0
+    wire_map = {}
+    nw = 0
+    for c in m.classes:
+        e0s = sorted({(-(ia * c.rep[0] + ib * c.rep[1])) % N for ia in range(N) for ib in range(N)})
+        for e in e0s:
+            wire_map[(c.idx, e)] = nw
+            nw += 1
+
+    lines = [
+        "// -----------------------------------------------------------------------------",
+        f"// Auto-generated Time-Multiplexed 3-D BCH Encoder (N={N}, T={T}, M={M}, K={K}, N_CLASS={NC})",
+        f"// {NN} XOR trees reused over {N} cycles; bank wires (pruned to i''=0 exponents): {nw}",
+        "// Interface: pulse `start` with `msg` (latched); slices i''=0..N-1 follow on consecutive",
+        "// cycles with slice_valid/slice_idx (1 cycle after the internal state). `start` is accepted",
+        "// when idle or in the last busy cycle (back-to-back, 1 codeword per N cycles).",
+        "// -----------------------------------------------------------------------------",
+        "`timescale 1ns/1ps",
+        "",
+        f"module bch3d_tm_bank_{tag} (",
+        f"    input  wire [{M*NC-1}:0] S,",
+        f"    output wire [{nw-1}:0] mul_out",
+        ");",
+    ]
+    for (ci, e), w in wire_map.items():
+        c = m.classes[ci]
+        expr = _s_mask_off("S", M*ci, c.trace_masks[e], M)
+        lines.append(f"    assign mul_out[{w}] = {expr}; // class {ci} alpha^{e}")
+    lines += ["endmodule", ""]
+
+    tree_mod = f"bch3d_tm_tree_{tag}"
+    lines += [
+        f"module {tree_mod} (input wire [{NC-1}:0] in_bits, output wire out_bit);",
+        "    assign out_bit = ^in_bits;",
+        "endmodule",
+        "",
+        f"module {mod_name} (",
+        "    input  wire clk,",
+        "    input  wire rst,",
+        "    input  wire start,",
+        f"    input  wire [{K-1}:0] msg,",
+        f"    output reg  [{NN-1}:0] slice,",
+        f"    output reg  [{M-1}:0] slice_idx,",
+        "    output reg  slice_valid,",
+        "    output wire done",
+        ");",
+        f"    wire [{M*NC-1}:0] sub_msg;",
+        f"    reg  [{M*NC-1}:0] S;",
+        f"    wire [{M*NC-1}:0] S_rot;",
+        f"    wire [{nw-1}:0] mul_out;",
+        f"    wire [{NN-1}:0] slice_c;",
+        "    reg busy;",
+        f"    reg [{M-1}:0] cyc;",
+        f"    wire last   = busy && (cyc == {M}'d{N-1});",
+        "    wire accept = start && (!busy || last);",
+        "",
+        f"    bch3d_msg_to_submsg #(.N({N}), .T({T}), .PRIM_POLY({M+1}'d{m.prim_poly})) u_submsg (",
+        "        .msg     (msg),",
+        "        .sub_msg (sub_msg)",
+        "    );",
+        "",
+        "    // S <- S * alpha^(-j3) per class (constant GF multiplier; wiring only when j3 = 0)",
+    ]
+    for c in m.classes:
+        g = m.exp[(-c.rep[2]) % N]
+        cols = [m.mul(1 << r, g) for r in range(M)]
+        for q in range(M):
+            rmask = sum(1 << r for r in range(M) if (cols[r] >> q) & 1)
+            lines.append(
+                f"    assign S_rot[{M*c.idx + q}] = {_s_mask_off('S', M*c.idx, rmask, M)};"
+            )
+    lines += [
+        "",
+        f"    bch3d_tm_bank_{tag} u_bank (.S(S), .mul_out(mul_out));",
+        "",
+        "    // One XOR tree per (i, i'); fixed wiring from bank wire e0(i, i')",
+    ]
+    for ia in range(N):
+        for ib in range(N):
+            terms = []
+            for c in m.classes:
+                e0 = (-(ia * c.rep[0] + ib * c.rep[1])) % N
+                terms.append(f"mul_out[{wire_map[(c.idx, e0)]}]")
+            lines.append(
+                f"    {tree_mod} u_tree_{ia}_{ib} (.in_bits({{{', '.join(terms)}}}), .out_bit(slice_c[{ia*N+ib}]));"
+            )
+    lines += [
+        "",
+        "    always @(posedge clk) begin",
+        "        if (rst) begin",
+        "            busy        <= 1'b0;",
+        f"            cyc         <= {M}'d0;",
+        "            slice_valid <= 1'b0;",
+        f"            slice_idx   <= {M}'d0;",
+        "        end else begin",
+        "            slice_valid <= busy;",
+        "            slice_idx   <= cyc;",
+        f"            if (accept) begin busy <= 1'b1; cyc <= {M}'d0; end",
+        f"            else if (last) begin busy <= 1'b0; cyc <= {M}'d0; end",
+        f"            else if (busy) cyc <= cyc + {M}'d1;",
+        "        end",
+        "        if (accept)    S <= sub_msg;",
+        "        else if (busy) S <= S_rot;",
+        "        slice <= slice_c;",
+        "    end",
+        "",
+        f"    assign done = slice_valid && (slice_idx == {M}'d{N-1});",
+        "endmodule",
+        "",
+    ]
+    with open(out_path, "w", encoding="utf-8") as f:
+        f.write("\n".join(lines))
+    return nw
+
+
+def tm_asm_mod_name(m: BCH3DModel) -> str:
+    return tm_mod_name(m).replace("bch3d_enc_tm", "bch3d_enc_tm_asm", 1)
+
+
+def generate_tm_asm_rtl(m: BCH3DModel, out_path: str):
+    """
+    Emit the assembly wrapper `bch3d_enc_tm_asm[_nX_tY].v` around the (unchanged) TM core.
+      * cw_sr: N^2 groups of N bits; group g = i*N + i' is an N-bit shift register that takes
+        slice[g] whenever slice_valid is high, so after N slices cw_sr[g*N + c] = bit (i, i', c)
+        (the flat codeword layout i*N^2 + i'*N + i''). Shift/enable wiring only, no LUTs.
+      * codeword (hold register): loaded from cw_sr one cycle after the last shift, so it is stable
+        for N cycles per codeword. cw_valid pulses for one cycle when a new codeword appears.
+    """
+    N, T, K, NNN = m.N, m.T, m.K, m.NNN
+    NN = N * N
+    core, mod = tm_mod_name(m), tm_asm_mod_name(m)
+    M = m.M
+    lines = [
+        "// -----------------------------------------------------------------------------",
+        f"// Auto-generated assembly wrapper for the time-multiplexed encoder (N={N}, T={T})",
+        f"// {NN} x {N}-bit slice shift registers -> {NNN}-bit hold register (stable for {N} cycles)",
+        "// Latency from the core's `done` cycle t: cw_sr complete in t+1, codeword/cw_valid in t+2.",
+        "// -----------------------------------------------------------------------------",
+        "`timescale 1ns/1ps",
+        f"module {mod} (",
+        "    input  wire clk,",
+        "    input  wire rst,",
+        "    input  wire start,",
+        f"    input  wire [{K-1}:0] msg,",
+        f"    output wire [{NN-1}:0] slice,",
+        f"    output wire [{M-1}:0] slice_idx,",
+        "    output wire slice_valid,",
+        "    output wire done,",
+        f"    output reg  [{NNN-1}:0] codeword,",
+        "    output reg  cw_valid",
+        ");",
+        f"    {core} u_core (.clk(clk), .rst(rst), .start(start), .msg(msg),",
+        "        .slice(slice), .slice_idx(slice_idx), .slice_valid(slice_valid), .done(done));",
+        "",
+        f"    reg [{NNN-1}:0] cw_sr;",
+        "    reg done_d;",
+        "",
+        "    genvar g;",
+        "    generate for (g = 0; g < %d; g = g + 1) begin : grp" % NN,
+        "        always @(posedge clk) if (slice_valid) begin",
+        f"            cw_sr[g*{N} +: {N-1}] <= cw_sr[g*{N}+1 +: {N-1}];",
+        f"            cw_sr[g*{N}+{N-1}]    <= slice[g];",
+        "        end",
+        "    end endgenerate",
+        "",
+        "    always @(posedge clk) begin",
+        "        if (rst) begin done_d <= 1'b0; cw_valid <= 1'b0; end",
+        "        else begin done_d <= done; cw_valid <= done_d; end",
+        "        if (done_d) codeword <= cw_sr;",
+        "    end",
+        "endmodule",
+        "",
+    ]
+    with open(out_path, "w", encoding="utf-8") as f:
+        f.write("\n".join(lines))
+
+
+def generate_tm_asm_testbench(m: BCH3DModel, tb_path: str, n_vecs: int, msg_mem: str, cw_mem: str):
+    """Clocked TB for the assembly wrapper: codeword compared on cw_valid, held for N cycles."""
+    N, T, M, K, NNN = m.N, m.T, m.M, m.K, m.NNN
+    NN = N * N
+    tag = f"n{N}_t{T}"
+    L = [
+        "`timescale 1ns/1ps",
+        f"module tb_bch3d_enc_tm_asm_{tag};",
+        f"    localparam integer N = {N}, K_BITS = {K}, NNN = {NNN}, NN = {NN}, N_VECS = {n_vecs}, MW = {M};",
+        "    reg clk = 0, rst = 1, start = 0;",
+        "    reg  [K_BITS-1:0] msg = 0;",
+        "    wire [NN-1:0] slice; wire [MW-1:0] slice_idx; wire slice_valid, done, cw_valid;",
+        "    wire [NNN-1:0] codeword;",
+        "    reg  [K_BITS-1:0] vec_msg [0:N_VECS-1];",
+        "    reg  [NNN-1:0]    vec_cw  [0:N_VECS-1];",
+        "    integer errors = 0, exp_idx = 0, k, n, age = 1000;",
+        "    reg [NNN-1:0] cap;",
+        "    reg done_q1 = 0, done_q2 = 0;",
+        "    always #5 clk = ~clk;",
+        "",
+        f"    {tm_asm_mod_name(m)} dut (.clk(clk), .rst(rst), .start(start), .msg(msg),",
+        "        .slice(slice), .slice_idx(slice_idx), .slice_valid(slice_valid), .done(done),",
+        "        .codeword(codeword), .cw_valid(cw_valid));",
+        "",
+        "    // Monitor: cw_valid must be done delayed by 2 cycles; codeword must match golden and",
+        "    // then stay stable for the next N-1 cycles (until the next codeword can be loaded).",
+        "    always @(posedge clk) begin",
+        "        if (!rst) begin",
+        "            if (cw_valid !== done_q2) begin",
+        '                if (errors < 10) $display("ERROR: cw_valid not done delayed by 2"); errors = errors + 1;',
+        "            end",
+        "        end",
+        "        done_q2 <= done_q1; done_q1 <= done;",
+        "        if (cw_valid) begin",
+        "            if (exp_idx >= N_VECS) begin",
+        '                if (errors < 10) $display("ERROR: unexpected codeword"); errors = errors + 1;',
+        "            end else if (codeword !== vec_cw[exp_idx]) begin",
+        '                if (errors < 10) $display("ERROR vec %0d: assembled codeword mismatch vs golden", exp_idx);',
+        "                errors = errors + 1;",
+        "            end",
+        "            cap = codeword; age = 0; exp_idx = exp_idx + 1;",
+        "        end else if (age < N - 1) begin",
+        "            age = age + 1;",
+        "            if (codeword !== cap) begin",
+        '                if (errors < 10) $display("ERROR: codeword not held for N cycles"); errors = errors + 1;',
+        "            end",
+        "        end",
+        "    end",
+        "",
+        "    task run_pass(input integer nvec, input integer g);",
+        "        begin",
+        "            exp_idx = 0; age = 1000;",
+        "            for (k = 0; k < nvec; k = k + 1) begin",
+        "                @(negedge clk); msg = vec_msg[k]; start = 1;",
+        "                @(negedge clk); start = 0; msg = ~vec_msg[k];",
+        "                repeat (N - 2 + g) @(negedge clk);",
+        "            end",
+        "            repeat (N + 6) @(negedge clk);",
+        "            if (exp_idx !== nvec) begin",
+        '                $display("ERROR: pass produced %0d codewords, expected %0d", exp_idx, nvec); errors = errors + 1;',
+        "            end",
+        "        end",
+        "    endtask",
+        "",
+        "    initial begin",
+        f'        $readmemh("{msg_mem}", vec_msg);',
+        f'        $readmemh("{cw_mem}",  vec_cw);',
+        "        repeat (30) @(negedge clk); rst = 0;",
+        "        run_pass(N_VECS, 3);   // gapped",
+        "        run_pass(N_VECS, 0);   // back-to-back, 1 codeword per N cycles",
+        "        // reset mid-run: no codeword may appear, then a clean run",
+        "        exp_idx = 0;",
+        "        @(negedge clk); msg = vec_msg[1]; start = 1; @(negedge clk); start = 0;",
+        "        repeat (3) @(negedge clk);",
+        "        rst = 1; @(negedge clk); rst = 0;",
+        "        repeat (2*N+4) @(negedge clk);",
+        '        if (exp_idx !== 0) begin $display("ERROR: codeword after reset"); errors = errors + 1; end',
+        "        run_pass(N_VECS < 20 ? N_VECS : 20, 1);",
+        '        $display("INFO: Checked %0d vectors x2 passes + reset test (assembled codeword), errors=%0d", N_VECS, errors);',
+        '        if (errors == 0) $display("PASS");',
+        '        else             $display("FAIL: %0d errors", errors);',
+        "        $finish;",
+        "    end",
+        "endmodule",
+        "",
+    ]
+    with open(tb_path, "w", encoding="utf-8") as f:
+        f.write("\n".join(L))
+
+
+def generate_tm_testbench(m: BCH3DModel, tb_path: str, n_vecs: int, msg_mem: str, cw_mem: str):
+    """Clocked TB for the TM encoder: gapped, back-to-back, mid-run reset, vs golden and `bch3d_enc_opt`."""
+    N, T, M, K, NNN = m.N, m.T, m.M, m.K, m.NNN
+    NN = N * N
+    tag = f"n{N}_t{T}"
+    opt_mod = "bch3d_enc_opt" if (N == 15 and T == 2) else f"bch3d_enc_opt_{tag}"
+    L = [
+        "`timescale 1ns/1ps",
+        f"module tb_bch3d_enc_tm_{tag};",
+        f"    localparam integer N = {N}, K_BITS = {K}, NNN = {NNN}, NN = {NN}, N_VECS = {n_vecs}, MW = {M};",
+        "    reg clk = 0, rst = 1, start = 0;",
+        "    reg  [K_BITS-1:0] msg = 0;",
+        "    wire [NN-1:0] slice; wire [MW-1:0] slice_idx; wire slice_valid, done;",
+        "    reg  [K_BITS-1:0] vec_msg [0:N_VECS-1];",
+        "    reg  [NNN-1:0]    vec_cw  [0:N_VECS-1];",
+        "    integer errors = 0, exp_idx = 0, i, k, a, b, gap, n;",
+        "    reg [NNN-1:0] asm;",
+        "    wire [NNN-1:0] cw_opt;",
+        "    wire [K_BITS-1:0] msg_exp = vec_msg[exp_idx < N_VECS ? exp_idx : 0];",
+        "    always #5 clk = ~clk;",
+        "",
+        f"    {tm_mod_name(m)} dut (.clk(clk), .rst(rst), .start(start), .msg(msg),",
+        "        .slice(slice), .slice_idx(slice_idx), .slice_valid(slice_valid), .done(done));",
+        f"    {opt_mod} u_opt (.msg(msg_exp), .codeword(cw_opt));",
+        "",
+        "    // Monitor: assemble slices; on done compare against golden and the optimised encoder",
+        "    always @(posedge clk) if (slice_valid) begin",
+        "        for (a = 0; a < N; a = a + 1) for (b = 0; b < N; b = b + 1)",
+        "            asm[a*N*N + b*N + slice_idx] = slice[a*N + b];",
+        "        if (done) begin",
+        "            if (exp_idx >= N_VECS) begin",
+        '                if (errors < 10) $display("ERROR: unexpected codeword"); errors = errors + 1;',
+        "            end else begin",
+        "                if (asm !== vec_cw[exp_idx]) begin",
+        '                    if (errors < 10) $display("ERROR vec %0d: tm mismatch vs golden", exp_idx);',
+        "                    errors = errors + 1;",
+        "                end",
+        "                if (asm !== cw_opt) begin",
+        '                    if (errors < 10) $display("ERROR vec %0d: tm !== opt", exp_idx);',
+        "                    errors = errors + 1;",
+        "                end",
+        "            end",
+        "            exp_idx = exp_idx + 1;",
+        "        end",
+        "    end",
+        "",
+        "    // Issue `n` vectors, one start every N+gap cycles; msg is scrambled right after start",
+        "    // (the encoder must have latched it).",
+        "    task run_pass(input integer nvec, input integer g);",
+        "        begin",
+        "            exp_idx = 0;",
+        "            for (k = 0; k < nvec; k = k + 1) begin",
+        "                @(negedge clk); msg = vec_msg[k]; start = 1;",
+        "                @(negedge clk); start = 0; msg = ~vec_msg[k];",
+        "                repeat (N - 2 + g) @(negedge clk);",
+        "            end",
+        "            repeat (N + 4) @(negedge clk);",
+        "            if (exp_idx !== nvec) begin",
+        '                $display("ERROR: pass produced %0d codewords, expected %0d", exp_idx, nvec); errors = errors + 1;',
+        "            end",
+        "        end",
+        "    endtask",
+        "",
+        "    initial begin",
+        f'        $readmemh("{msg_mem}", vec_msg);',
+        f'        $readmemh("{cw_mem}",  vec_cw);',
+        "        repeat (3) @(negedge clk); rst = 0;",
+        "        run_pass(N_VECS, 3);   // gapped",
+        "        run_pass(N_VECS, 0);   // back-to-back, 1 codeword per N cycles",
+        "        // reset mid-run: no further valid slices, then a clean run",
+        "        exp_idx = 0;",
+        "        @(negedge clk); msg = vec_msg[1]; start = 1; @(negedge clk); start = 0;",
+        "        repeat (3) @(negedge clk);",
+        "        rst = 1; @(negedge clk); rst = 0;",
+        "        n = 0; repeat (2*N) begin @(negedge clk); if (slice_valid) n = n + 1; end",
+        '        if (n !== 0 || exp_idx !== 0) begin $display("ERROR: activity after reset"); errors = errors + 1; end',
+        "        run_pass(N_VECS < 20 ? N_VECS : 20, 1);",
+        '        $display("INFO: Checked %0d vectors x2 passes + reset test, errors=%0d", N_VECS, errors);',
+        '        if (errors == 0) $display("PASS");',
+        '        else             $display("FAIL: %0d errors", errors);',
+        "        $finish;",
+        "    end",
+        "endmodule",
+        "",
+    ]
+    with open(tb_path, "w", encoding="utf-8") as f:
+        f.write("\n".join(L))
+
+
 def generate_testbench(
     m: BCH3DModel,
     tb_path: str,
@@ -257,15 +635,10 @@ def generate_testbench(
     Generate a fast `$readmemh`-based self-checking testbench that tests BOTH
     `bch3d_enc_baseline` and `bch3d_enc_opt` against the golden model.
 
-    Wait: how do we compute all K unit vectors + random vectors quickly for N=15?
-    Let's check! By linearity, for each message bit `b` (0..K-1) belonging to class `c`
-    at offset `i = b - c.bit_offset`, its sub-message is simply `S_c = alpha^(i * step)`,
-    and all other classes have `S = 0`!
-    So the codeword for unit vector `1 << b` is computed in O(N^3) (3375 ops) instead
-    of O(N^3 * N_CLASS)! For all 3163 unit vectors at N=15, 3163 * 3375 = 10.6M ops,
-    which takes < 0.2 seconds in Python using integers!
-    Even better: we cross-check random vectors with the full separable 3-D IDFFFT (`encode_idffft`)
-    AND compute the exact generator matrix rows from `encode_idffft` or single-class IDFFFT!
+    Unit-vector codewords are built per class in O(N^3): a unit vector touches one class
+    with S = alpha^(i*step), so every other class contributes 0. A random message is the XOR
+    of its unit-vector codewords (GF(2) linearity) and is cross-checked against the
+    independent separable 3-D IDFFFT (`encode_idffft`) and the spectral-null check.
     """
     os.makedirs(vec_dir, exist_ok=True)
     N, T, M, K, NC, NNN = m.N, m.T, m.M, m.K, m.N_CLASS, m.NNN
@@ -404,6 +777,7 @@ def generate_testbench(
         f"[GEN] N={N} T={T}: {n_vecs} vectors (incl. all {K} unit vectors + {num_random} random, "
         f"cross-checked vs 3-D IDFFFT) written in {time.time()-t0:.2f}s"
     )
+    return n_vecs, msg_mem_path, cw_mem_path
 
 
 def main():
@@ -437,7 +811,19 @@ def main():
         f"[GEN] N={args.n} T={args.t} RTL written in {time.time()-t0:.2f}s: "
         f"base={os.path.getsize(base_path)//1024}KB, opt={os.path.getsize(opt_path)//1024}KB"
     )
-    generate_testbench(m, tb_path, args.vec_dir, num_random=args.num_random, include_all_unit_vectors=True)
+    tm_path = os.path.join(args.rtl_dir, tm_mod_name(m) + ".v")
+    nw = generate_tm_rtl(m, tm_path)
+    print(f"[GEN] TM RTL: {tm_path} ({os.path.getsize(tm_path)//1024}KB, {nw} bank wires)")
+    n_vecs, msg_mem, cw_mem = generate_testbench(
+        m, tb_path, args.vec_dir, num_random=args.num_random, include_all_unit_vectors=True
+    )
+    generate_tm_testbench(
+        m, os.path.join(args.tb_dir, f"tb_bch3d_enc_tm_{tag}.v"), n_vecs, msg_mem, cw_mem
+    )
+    generate_tm_asm_rtl(m, os.path.join(args.rtl_dir, tm_asm_mod_name(m) + ".v"))
+    generate_tm_asm_testbench(
+        m, os.path.join(args.tb_dir, f"tb_bch3d_enc_tm_asm_{tag}.v"), n_vecs, msg_mem, cw_mem
+    )
 
 
 if __name__ == "__main__":
