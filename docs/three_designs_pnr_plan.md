@@ -43,6 +43,22 @@ Run this first, so the full design-1 run is attempted with a known per-cone timi
 - Same reports as the Virtex-7 run, routed checkpoint and flattened netlist. No simulation.
 - Small (17 k LUTs), so it can run while the slice is being generated.
 
+### Step 0b result (2026-10-31, reports in `reports/tm_a7/`)
+`bch3d_enc_tm_asm`, xc7a200tfbg676-1, `rebuilt`. All runs fully routed, 0 routing errors, hold met.
+
+| Period | WNS | LUTs | FFs | Power (total / dynamic) | Run time |
+|---:|---:|---:|---:|---:|---:|
+| 6.0 ns | -2.040 | 19,334 | 10,221 | 2.97 / 2.84 W | 32 min |
+| 7.0 ns | -1.188 | 19,077 | 10,218 | 2.49 / 2.36 W | 19 min |
+| 8.0 ns | -0.074 | 17,336 | 10,168 | 2.05 / 1.92 W | 11 min |
+| **8.5 ns** | **+0.139** | **17,209 (12.9%)** | **10,168 (3.8%)** | **1.92 / 1.80 W** | ~10 min |
+| 10.0 ns | +0.960 | 17,177 | 10,168 | 1.66 / 1.53 W | 6 min |
+
+- Fastest closed period: 8.5 ns (117.6 MHz) vs 6 ns on Virtex-7. Throughput 7.84 M codewords/s, 26.5 Gbit/s of codeword.
+- Critical path is the same datapath as on Virtex-7: `S_reg -> 5 LUTs -> slice_reg`, 8.31 ns, 82% routing.
+- Static power is 0.13 W on Artix-7 against ~0.6 W on the much larger Virtex-7 2000T.
+- The failing runs used ~2k more LUTs (Vivado replicates logic while trying to close timing).
+
 ## Known numbers going in
 | Design | Synth LUTs (`flatten none`) | % of xc7v2000t (1,221,600) | FFs |
 |---|---:|---:|---:|

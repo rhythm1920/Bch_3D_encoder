@@ -1,0 +1,59 @@
+Copyright 1986-2022 Xilinx, Inc. All Rights Reserved. Copyright 2022-2026 Advanced Micro Devices, Inc. All Rights Reserved.
+----------------------------------------------------------------------------------------------------------------------------------------------------
+| Tool Version : Vivado v.2026.1 (win64) Build 6511674 Tue Jun 16 11:02:23 MDT 2026
+| Date         : Sat Oct 31 00:01:34 2026
+| Host         : Shantanu running 64-bit major release  (build 9200)
+| Command      : report_design_analysis -congestion -timing -max_paths 10 -file build/pnr_a7/pnr_design_analysis_bch3d_enc_tm_asm_rebuilt_6.0ns.rpt
+| Design       : bch3d_enc_tm_asm
+| Device       : xc7a200t
+| Design State : Routed
+----------------------------------------------------------------------------------------------------------------------------------------------------
+
+Report Design Analysis
+
+Table of Contents
+-----------------
+1. Setup Path Characteristics 1-10
+2. Placer Final Level Congestion Reporting
+3. Initial Estimated Router Congestion Reporting
+
+1. Setup Path Characteristics 1-10
+----------------------------------
+
++----------+-------------+------------+-------------+------------+------------+--------+-------------------+--------------------+-------------------+--------------+--------+------------------------------------------------------------------+-------------------+-----------------+-----------+---------------+--------------+------------------+---------------+---------+-------------+-----------+------------+------------+---------------------------+-------------------------+-----------------+------------------+
+|   Paths  | Requirement | Path Delay | Logic Delay |  Net Delay | Clock Skew |  Slack | Clock Uncertainty | Clock Relationship | Clock Delay Group | Logic Levels | Routes |                           Logical Path                           | Start Point Clock | End Point Clock | DSP Block | RAM Registers | IO Crossings | Config Crossings | SLR Crossings | PBlocks | High Fanout | ASYNC REG | Dont Touch | Mark Debug | Start Point Pin Primitive | End Point Pin Primitive | Start Point Pin |   End Point Pin  |
++----------+-------------+------------+-------------+------------+------------+--------+-------------------+--------------------+-------------------+--------------+--------+------------------------------------------------------------------+-------------------+-----------------+-----------+---------------+--------------+------------------+---------------+---------+-------------+-----------+------------+------------+---------------------------+-------------------------+-----------------+------------------+
+| Path #1  | 6.000       | 8.033      | 1.312(17%)  | 6.721(83%) | -0.049     | -2.040 | 0.035             | Safely Timed       | Same Clock        | 5            | 5      | FDRE/C-(12)-LUT2-(1)-LUT6-(15)-LUT6-(1)-LUT6-(1)-LUT5-(1)-FDRE/D | clk               | clk             | None      | None-None     | 0            | 0                | 0             | 0       | 15          | 0         | 0          | 0          | FDRE/C                    | FDRE/D                  | S_reg[2364]/C   | slice_reg[118]/D |
+| Path #2  | 6.000       | 7.950      | 1.374(18%)  | 6.576(82%) | -0.049     | -2.005 | 0.035             | Safely Timed       | Same Clock        | 5            | 5      | FDRE/C-(12)-LUT2-(1)-LUT6-(3)-LUT6-(5)-LUT6-(1)-LUT5-(1)-FDRE/D  | clk               | clk             | None      | None-None     | 0            | 0                | 0             | 0       | 12          | 0         | 0          | 0          | FDRE/C                    | FDRE/D                  | S_reg[1942]/C   | slice_reg[193]/D |
+| Path #3  | 6.000       | 7.942      | 1.374(18%)  | 6.568(82%) | -0.049     | -1.947 | 0.035             | Safely Timed       | Same Clock        | 5            | 5      | FDRE/C-(12)-LUT2-(1)-LUT6-(3)-LUT6-(5)-LUT6-(1)-LUT5-(1)-FDRE/D  | clk               | clk             | None      | None-None     | 0            | 0                | 0             | 0       | 12          | 0         | 0          | 0          | FDRE/C                    | FDRE/D                  | S_reg[1942]/C   | slice_reg[103]/D |
+| Path #4  | 6.000       | 7.891      | 1.076(14%)  | 6.815(86%) | -0.049     | -1.944 | 0.035             | Safely Timed       | Same Clock        | 5            | 5      | FDRE/C-(25)-LUT3-(15)-LUT6-(1)-LUT6-(1)-LUT6-(1)-LUT5-(1)-FDRE/D | clk               | clk             | None      | None-None     | 0            | 0                | 0             | 0       | 25          | 0         | 0          | 0          | FDRE/C                    | FDRE/D                  | S_reg[378]/C    | slice_reg[75]/D  |
+| Path #5  | 6.000       | 7.872      | 1.401(18%)  | 6.471(82%) | -0.049     | -1.927 | 0.035             | Safely Timed       | Same Clock        | 5            | 5      | FDRE/C-(11)-LUT2-(1)-LUT6-(15)-LUT6-(1)-LUT6-(1)-LUT5-(1)-FDRE/D | clk               | clk             | None      | None-None     | 0            | 0                | 0             | 0       | 15          | 0         | 0          | 0          | FDRE/C                    | FDRE/D                  | S_reg[395]/C    | slice_reg[159]/D |
+| Path #6  | 6.000       | 7.899      | 1.441(19%)  | 6.458(81%) | -0.049     | -1.907 | 0.035             | Safely Timed       | Same Clock        | 5            | 5      | FDRE/C-(14)-LUT3-(5)-LUT6-(3)-LUT6-(1)-LUT6-(1)-LUT5-(1)-FDRE/D  | clk               | clk             | None      | None-None     | 0            | 0                | 0             | 0       | 14          | 0         | 0          | 0          | FDRE/C                    | FDRE/D                  | S_reg[1758]/C   | slice_reg[80]/D  |
+| Path #7  | 6.000       | 7.893      | 1.269(17%)  | 6.624(83%) | -0.049     | -1.898 | 0.035             | Safely Timed       | Same Clock        | 5            | 5      | FDRE/C-(4)-LUT3-(5)-LUT6-(15)-LUT6-(1)-LUT6-(1)-LUT5-(1)-FDRE/D  | clk               | clk             | None      | None-None     | 0            | 0                | 0             | 0       | 15          | 0         | 0          | 0          | FDRE/C                    | FDRE/D                  | S_reg[174]/C    | slice_reg[61]/D  |
+| Path #8  | 6.000       | 7.830      | 1.138(15%)  | 6.692(85%) | -0.049     | -1.885 | 0.035             | Safely Timed       | Same Clock        | 5            | 5      | FDRE/C-(9)-LUT3-(1)-LUT6-(3)-LUT6-(5)-LUT6-(1)-LUT5-(1)-FDRE/D   | clk               | clk             | None      | None-None     | 0            | 0                | 0             | 0       | 9           | 0         | 0          | 0          | FDRE/C                    | FDRE/D                  | S_reg[1925]/C   | slice_reg[145]/D |
+| Path #9  | 6.000       | 7.733      | 0.704(10%)  | 7.029(90%) | -0.049     | -1.884 | 0.035             | Safely Timed       | Same Clock        | 2            | 3      | FDRE/C-(7)-LUT6-(1218)-LUT5-(1)-FDRE/D                           | clk               | clk             | None      | None-None     | 0            | 0                | 0             | 0       | 1218        | 0         | 0          | 0          | FDRE/C                    | FDRE/D                  | cyc_reg[3]/C    | S_reg[2852]/D    |
+| Path #10 | 6.000       | 7.823      | 1.366(18%)  | 6.457(82%) | -0.049     | -1.876 | 0.035             | Safely Timed       | Same Clock        | 5            | 5      | FDRE/C-(11)-LUT2-(1)-LUT6-(15)-LUT6-(1)-LUT6-(1)-LUT5-(1)-FDRE/D | clk               | clk             | None      | None-None     | 0            | 0                | 0             | 0       | 15          | 0         | 0          | 0          | FDRE/C                    | FDRE/D                  | S_reg[2553]/C   | slice_reg[167]/D |
++----------+-------------+------------+-------------+------------+------------+--------+-------------------+--------------------+-------------------+--------------+--------+------------------------------------------------------------------+-------------------+-----------------+-----------+---------------+--------------+------------------+---------------+---------+-------------+-----------+------------+------------+---------------------------+-------------------------+-----------------+------------------+
+* Bounding box calculated as % of dimensions for the target device (436, 500)
+
+
+2. Placer Final Level Congestion Reporting
+------------------------------------------
+
++-----------+------+-------+------------+--------+---------------+----------------+-----+--------+------+------+------+-----+-------+-----+------------+
+| Direction | Type | Level | Congestion | Window | Combined LUTs | Avg LUT Inputs | LUT | LUTRAM | Flop | MUXF | RAMB | DSP | CARRY | SRL | Cell Names |
++-----------+------+-------+------------+--------+---------------+----------------+-----+--------+------+------+------+-----+-------+-----+------------+
+* No congestion windows are found above level 5
+
+
+3. Initial Estimated Router Congestion Reporting
+------------------------------------------------
+
++-----------+--------+-------+------------------+-----------------------------------+---------------+----------------+-----+--------+------+------+------+-----+-------+-----+-------------+
+| Direction |  Type  | Level | Percentage Tiles |               Window              | Combined LUTs | Avg LUT Inputs | LUT | LUTRAM | Flop | MUXF | RAMB | DSP | CARRY | SRL |  Cell Names |
++-----------+--------+-------+------------------+-----------------------------------+---------------+----------------+-----+--------+------+------+------+-----+-------+-----+-------------+
+| East      | Global |     5 |           2.460% | (CLBLM_L_X32Y138,CLBLM_R_X63Y153) |            1% |          4.525 | 85% | 0%     |   5% |   0% | 0%   | 0%  |    0% |  0% | u_core(99%) |
+| East      | Short  |     5 |           3.215% | (CLBLM_L_X32Y122,CLBLM_R_X63Y153) |            1% |          4.256 | 81% | 0%     |   5% |   0% | 0%   | 0%  |    0% |  0% | u_core(99%) |
++-----------+--------+-------+------------------+-----------------------------------+---------------+----------------+-----+--------+------+------+------+-----+-------+-----+-------------+
+
+
