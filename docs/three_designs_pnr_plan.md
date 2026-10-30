@@ -83,6 +83,23 @@ Both are purely combinational, so a routed run has no reg-to-reg paths. Generate
 - Reports: timing summary, critical paths, utilisation (flat + hierarchical), high-fanout nets, congestion / design analysis, route status, power (vectorless), clock utilisation, routed checkpoint, flattened `funcsim` netlist.
 - Order: design 2 first (smaller, tells us run time and memory), then design 1.
 
+### Step 3 result, design 2 (2026-10-31, log in `reports/opt_v7/`)
+`bch3d_enc_opt_reg`, xc7v2000tflg1925-1, `rebuilt`, 10 ns. **Synthesised and placed, but did not route.**
+
+| | Value |
+|---|---:|
+| Synth LUTs (`rebuilt`) | 181,728 (14.9%): LUT6 166,551, LUT5 3,375, LUT4 4,129, LUT3 3,106, LUT2 4,567 |
+| FFs | 6,538 |
+| Post-place WNS (estimate) | +0.383 ns |
+| Placer | "highly congested" warning |
+| Router | 25,832 signals unrouted, 66,912 node overlaps; max congestion 99.8% (East) |
+| Run time | synth 22 min, place 12 min, route 2 h 41 min, 197 min total |
+| Vivado peak memory | 9.2 GB (6.7 GB reported by Vivado), 0.22 GB RAM left at the worst point |
+
+- `rebuilt` shrinks design 2 from 544,597 to 181,728 LUTs (3x), but its 3,375 wide XOR trees all pull from the same 3,163 inputs. That wiring is the bottleneck, not the LUT count.
+- Timing would close at 10 ns if it routed (post-place WNS > 0), so the failure is routability only.
+- Design 1 has the same all-to-all wiring and is larger, so a full place and route would fail the same way and would not fit in memory. Per the fallback rule it is reported from the slice (Step 0) plus a synthesis-only run with `rebuilt`.
+
 ### Risks
 - **Memory:** this machine has 15.3 GB RAM. Placing and routing 0.5-1.2 M LUTs on the 2000T can need much more. Each run is watched for peak memory; if Vivado runs out or swaps heavily, the run is stopped and that is recorded.
 - **Routability:** the 2000T is four stacked dies (SLRs). Design 1 at ~95% LUT would need heavy SLR crossings; failure to route is a likely outcome.

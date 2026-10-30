@@ -1,0 +1,93 @@
+<title>Three BCH Encoders</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;600&family=IBM+Plex+Mono&display=swap">
+<style>
+:root{--bg:#f7f7f4;--fg:#1d2126;--mut:#5d6570;--line:#d9dbd6;--card:#ffffff;--acc:#2f6fb0;--bad:#b0412f;--good:#2f7d4f}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#15181c;--fg:#e6e8ea;--mut:#9aa3ad;--line:#2c3238;--card:#1c2026;--acc:#6aa4dd;--bad:#e07a66;--good:#62b585;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#15181c;--fg:#e6e8ea;--mut:#9aa3ad;--line:#2c3238;--card:#1c2026;--acc:#6aa4dd;--bad:#e07a66;--good:#62b585;color-scheme:dark}
+body{background:var(--bg);color:var(--fg);font:15px/1.6 "IBM Plex Sans",system-ui,sans-serif}
+main{max-width:920px;margin:0 auto;padding-block:32px 64px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:grid;gap:28px}
+h1,h2{text-wrap:balance;line-height:1.25;margin:0}h1{font-size:28px}h2{font-size:20px}
+p{margin:0;max-width:68ch}.mut{color:var(--mut)}
+code{font-family:"IBM Plex Mono",monospace;font-size:.9em}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:16px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:16px;display:grid;gap:8px;min-width:0}
+.tag{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--mut)}
+.st{font-weight:600}.st.bad{color:var(--bad)}.st.good{color:var(--good)}
+.tw{overflow-x:auto}table{border-collapse:collapse;width:100%;font-size:14px}
+th,td{padding:6px 10px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}th:first-child,td:first-child{text-align:left}
+th{color:var(--mut);font-weight:600}
+figure{margin:0;display:grid;gap:8px}figcaption{color:var(--mut);font-size:13px}
+svg{max-width:100%;height:auto;color:var(--fg)}
+.bar{fill:var(--acc)}.bar.est{fill:none;stroke:var(--acc);stroke-dasharray:4 3;stroke-width:1.5}
+.bar:hover{opacity:.8}
+</style>
+<main>
+<header style="display:grid;gap:8px">
+<div class="tag">3-D BCH encoder · N = 15, T = 2 · GF(16)</div>
+<h1>Three encoder architectures, after place and route</h1>
+<p class="mut">Each design maps 3,163 message bits to a 3,375-bit codeword (15×15×15). Tool flow: Vivado 2026.1, out of context, <code>flatten rebuilt</code>.</p>
+</header>
+
+<section class="cards">
+<div class="card"><div class="tag">Design 1 · baseline</div><p>Follows Mondal &amp; Garani 2021. Every output point has its own conjugate-class multipliers and an XOR array, so nothing is shared. One codeword per clock.</p><div class="st bad">Full design not run; 225-point slice routed</div></div>
+<div class="card"><div class="tag">Design 2 · shared multipliers</div><p>Compute once, route many. One bank of computation-class products (11,500 wires) feeds 3,375 XOR trees. One codeword per clock.</p><div class="st bad">182 k LUTs, failed routing (congestion)</div></div>
+<div class="card"><div class="tag">Design 3 · time-multiplexed</div><p>Spectral registers are rotated by α<sup>−j3</sup> each cycle. 225 XOR trees are reused over 15 cycles, and an assembly register collects the planes. One codeword per 15 clocks.</p><div class="st good">17 k LUTs, routed on Virtex-7 and Artix-7</div></div>
+</section>
+
+<figure>
+<svg viewBox="0 0 860 230" role="img" aria-label="Datapath changes from design 1 to 3: duplicated multipliers, then a shared bank feeding 3375 trees, then a shared bank feeding 225 trees reused over 15 cycles">
+<defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="currentColor"/></marker></defs>
+<g font-size="12" fill="currentColor" stroke="currentColor" stroke-width="1.2">
+<text x="140" y="18" text-anchor="middle" stroke="none" font-weight="600">1 · baseline</text>
+<text x="430" y="18" text-anchor="middle" stroke="none" font-weight="600">2 · shared bank</text>
+<text x="720" y="18" text-anchor="middle" stroke="none" font-weight="600">3 · time-multiplexed</text>
+<rect x="20" y="40" width="70" height="150" fill="none"/><text x="55" y="120" text-anchor="middle" stroke="none">msg</text>
+<g fill="none"><rect x="130" y="40" width="110" height="40"/><rect x="130" y="95" width="110" height="40"/><rect x="130" y="150" width="110" height="40"/></g>
+<g stroke="none" text-anchor="middle"><text x="185" y="64">mult + XOR, pt 0</text><text x="185" y="119">mult + XOR, pt 1</text><text x="185" y="174">… × 3,375</text></g>
+<line x1="90" y1="60" x2="128" y2="60" marker-end="url(#a)"/><line x1="90" y1="115" x2="128" y2="115" marker-end="url(#a)"/><line x1="90" y1="170" x2="128" y2="170" marker-end="url(#a)"/>
+<rect x="310" y="40" width="60" height="150" fill="none"/><text x="340" y="120" text-anchor="middle" stroke="none">msg</text>
+<rect x="390" y="40" width="70" height="150" fill="none" stroke="var(--acc)" stroke-width="2"/><text x="425" y="115" text-anchor="middle" stroke="none">bank</text><text x="425" y="131" text-anchor="middle" stroke="none" font-size="11">once</text>
+<rect x="490" y="40" width="70" height="150" fill="none"/><text x="525" y="115" text-anchor="middle" stroke="none">3,375</text><text x="525" y="131" text-anchor="middle" stroke="none" font-size="11">XOR trees</text>
+<line x1="370" y1="115" x2="388" y2="115" marker-end="url(#a)"/><line x1="460" y1="115" x2="488" y2="115" marker-end="url(#a)"/>
+<text x="525" y="208" text-anchor="middle" stroke="none" font-size="11" fill="var(--bad)">all-to-all wiring</text>
+<rect x="600" y="40" width="60" height="150" fill="none"/><text x="630" y="112" text-anchor="middle" stroke="none">S regs</text><text x="630" y="128" text-anchor="middle" stroke="none" font-size="11">× α⁻ʲ</text>
+<rect x="690" y="70" width="70" height="90" fill="none"/><text x="725" y="112" text-anchor="middle" stroke="none">225</text><text x="725" y="128" text-anchor="middle" stroke="none" font-size="11">trees</text>
+<rect x="790" y="40" width="55" height="150" fill="none"/><text x="817" y="120" text-anchor="middle" stroke="none">asm</text>
+<line x1="660" y1="115" x2="688" y2="115" marker-end="url(#a)"/><line x1="760" y1="115" x2="788" y2="115" marker-end="url(#a)"/>
+<path d="M630 190 V215 H600 V30 H630 V38" fill="none" stroke-dasharray="4 3" marker-end="url(#a)"/>
+<text x="725" y="208" text-anchor="middle" stroke="none" font-size="11">rotate, 15 cycles</text>
+</g></svg>
+<figcaption>Design 2 shares the multipliers, but all 3,375 XOR trees still read the whole message at once. Design 3 keeps only 225 trees and reuses them over 15 cycles.</figcaption>
+</figure>
+
+<figure>
+<h2>LUTs used</h2>
+<svg viewBox="0 0 860 190" role="img" aria-label="LUTs: design 1 about 568 thousand estimated, design 2 181,728, design 3 17,209">
+<g font-size="12" fill="currentColor">
+<text x="0" y="40">D1 (slice ×15, est.)</text><rect class="bar est" x="170" y="26" width="620" height="22" rx="4"><title>Design 1: ~568,000 LUTs (estimate)</title></rect><text x="796" y="42" font-size="11">~568 k</text>
+<text x="0" y="90">D2 (synth)</text><rect class="bar" x="170" y="76" width="198" height="22" rx="4"><title>Design 2: 181,728 LUTs</title></rect><text x="376" y="92">181.7 k</text>
+<text x="0" y="140">D3 (routed)</text><rect class="bar" x="170" y="126" width="19" height="22" rx="4"><title>Design 3: 17,209 LUTs (Artix-7)</title></rect><text x="196" y="142">17.2 k</text>
+<line x1="170" y1="160" x2="790" y2="160" stroke="var(--line)"/>
+</g></svg>
+<figcaption>Dashed means an estimate. On xc7v2000t, 1.22 M LUTs is 100%.</figcaption>
+</figure>
+
+<section style="display:grid;gap:12px">
+<h2>Measured results</h2>
+<div class="tw"><table>
+<tr><th></th><th>D1 slice</th><th>D2 full</th><th>D3 Virtex-7</th><th>D3 Artix-7</th></tr>
+<tr><td>Part</td><td>xc7v2000t-1</td><td>xc7v2000t-1</td><td>xc7v2000t-1</td><td>xc7a200t-1</td></tr>
+<tr><td>Routed</td><td>yes</td><td>no: 25,832 nets unrouted</td><td>yes</td><td>yes</td></tr>
+<tr><td>LUTs</td><td>37,882</td><td>181,728</td><td>17,196</td><td>17,209</td></tr>
+<tr><td>FFs</td><td>3,354</td><td>6,538</td><td>10,200</td><td>10,168</td></tr>
+<tr><td>Clock / WNS</td><td>10 ns / +1.618</td><td>10 ns / +0.383 (placed)</td><td>6 ns / +0.062</td><td>8.5 ns / +0.139</td></tr>
+<tr><td>Fmax</td><td>~119 MHz</td><td>–</td><td>166.7 MHz</td><td>117.6 MHz</td></tr>
+<tr><td>Power</td><td>3.03 W</td><td>–</td><td>3.35 W</td><td>1.92 W</td></tr>
+<tr><td>Codeword throughput</td><td>(full est.) ≤402 Gb/s</td><td>(if routed) 337 Gb/s</td><td>37.5 Gb/s</td><td>26.5 Gb/s</td></tr>
+<tr><td>Energy / codeword</td><td>(full est.) ~0.31 µJ</td><td>–</td><td>0.30 µJ</td><td>0.25 µJ</td></tr>
+<tr><td>Peak Vivado memory</td><td>5.3 GB</td><td>9.2 GB</td><td>–</td><td>–</td></tr>
+</table></div>
+<p class="mut">Design 2 is not limited by its LUT count, since it uses only 15% of the device. Every one of its trees needs wires from across the whole message, the router's congestion peaked at 99.8%, and 66,912 routing nodes remained overlapping. Design 1 has the same wiring pattern with three times the logic, so its full run was skipped. Its numbers are the measured slice scaled ×15. Design 3 is the only full encoder that fits and routes, at roughly 1/10 of design 2's area.</p>
+</section>
+</main>

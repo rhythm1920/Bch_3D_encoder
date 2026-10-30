@@ -1,0 +1,68 @@
+\documentclass[10pt]{article}
+\usepackage[margin=2cm]{geometry}
+\usepackage{booktabs}
+\usepackage{siunitx}
+\title{3-D BCH encoder, $N=15$, $T=2$: three architectures after place and route}
+\author{}
+\date{31 October 2026}
+\begin{document}
+\maketitle
+
+\section{Designs}
+All three encode $K=3163$ message bits into an $N^3=3375$-bit codeword over GF(16).
+\begin{description}
+\item[Design 1, baseline] (\texttt{bch3d\_enc\_baseline}): Mondal \& Garani 2021, extended to 3-D. Every output point has its own conjugate-class units and XOR array. One codeword per clock.
+\item[Design 2, multiplier optimisation] (\texttt{bch3d\_enc\_opt}): compute once, route many. A shared bank of computation-class products (11,500 wires) feeds 3,375 XOR trees. One codeword per clock.
+\item[Design 3, time-multiplexed] (\texttt{bch3d\_enc\_tm\_asm}): spectral registers rotated by $\alpha^{-j_3}$ and 225 XOR trees reused over 15 cycles, plus an assembly shift register. One codeword per 15 clocks.
+\end{description}
+Designs 1 and 2 are wrapped with input and output registers (\texttt{\_reg}, 6,538 FFs, 2-cycle latency). Both wrappers passed RTL simulation (3,170 vectors, 0 errors).
+
+Flow: Vivado 2026.1, out-of-context, \texttt{synth\_design -flatten\_hierarchy rebuilt}, \texttt{opt\_design}, \texttt{place\_design}, \texttt{route\_design}, vectorless power. Machine: 15.3\,GB RAM.
+
+\section{Results}
+\begin{table}[h]\centering\small
+\begin{tabular}{lrrrr}
+\toprule
+ & D1 slice (225 pts) & D2 full & D3 Virtex-7 & D3 Artix-7 \\
+\midrule
+Part & xc7v2000t-1 & xc7v2000t-1 & xc7v2000t-1 & xc7a200t-1 \\
+Status & routed & \textbf{not routable} & routed & routed \\
+LUTs & 37,882 & 181,728 (synth) & 17,196 & 17,209 \\
+FFs & 3,354 & 6,538 & 10,200 & 10,168 \\
+Clock period & 10\,ns & 10\,ns & 6\,ns & 8.5\,ns \\
+WNS & +1.618 & +0.383 (post-place) & +0.062 & +0.139 \\
+Fmax & $\approx$119\,MHz & -- & 166.7\,MHz & 117.6\,MHz \\
+Power total / dynamic & 3.03 / 2.36\,W & -- & 3.35\,W & 1.92 / 1.80\,W \\
+Peak memory & 5.3\,GB & 9.2\,GB & -- & -- \\
+Run time & 11.7\,min & 197\,min & -- & $\approx$10\,min \\
+\bottomrule
+\end{tabular}
+\caption{Measured results. ``--'' means no number exists for that run.}
+\end{table}
+
+\paragraph{Design 2.} Synthesis with \texttt{rebuilt} gives 181,728 LUTs (14.9\% of the device), a third of the 544,597 LUTs from \texttt{flatten none}. Placement closes timing at 10\,ns (estimated WNS $+0.383$\,ns), but routing fails: 25,832 signals unrouted, 66,912 node overlaps, peak congestion 99.8\%. Each of the 3,375 XOR trees reads from across the whole 3,163-bit message, so the wiring is all-to-all. The design runs out of routing, not of LUTs.
+
+\paragraph{Design 1.} Design 1 has the same all-to-all wiring and more logic, so it was not placed and routed in full (fallback rule of the plan). The 225-point slice routes at 10\,ns. Scaling it by 15 gives $\approx$568\,k LUTs and $\approx$36\,W dynamic power. These are estimates, and best-case ones: the slice has 15$\times$ less input fan-out than the full design. Since the smaller design 2 already fails to route, the full design 1 is expected to fail as well.
+
+\section{Throughput and efficiency}
+\begin{table}[h]\centering\small
+\begin{tabular}{lrrrr}
+\toprule
+ & Codewords/s & Gbit/s & Energy / codeword & Gbit/s per k LUT \\
+\midrule
+D1 full (estimate) & $\le$119\,M & $\le$402 & $\approx$0.31\,$\mu$J & $\approx$0.71 \\
+D2 full (if routed at 10\,ns) & 100\,M & 337.5 & -- & 1.86 \\
+D3 Virtex-7, 6\,ns & 11.1\,M & 37.5 & 0.30\,$\mu$J & 2.18 \\
+D3 Artix-7, 8.5\,ns & 7.84\,M & 26.5 & 0.25\,$\mu$J & 1.54 \\
+\bottomrule
+\end{tabular}
+\caption{Gbit/s counts codeword bits. Design 1's numbers are slice $\times$15. Design 2's are what it would deliver at the post-place clock, had it routed.}
+\end{table}
+
+\section{Conclusions}
+\begin{itemize}
+\item Design 3 is the only full $N=15$ encoder that routes. It uses about 1/10 of design 2's LUTs and fits a low-cost Artix-7 (12.9\% of the 200T).
+\item Design 3 gives up 15$\times$ throughput per clock, but per LUT it is close to or better than designs 1 and 2. Its energy per codeword matches the design 1 estimate.
+\item Moving from design 1 to design 2 removes duplicated multipliers, but routing becomes the limit. Time-multiplexing cuts the number of simultaneous XOR trees from 3,375 to 225, and that is what makes the design routable.
+\end{itemize}
+\end{document}
