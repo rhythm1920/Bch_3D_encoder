@@ -7,11 +7,24 @@ Status: plan only, nothing implemented yet.
 |---|---|---|---|---|
 | 1 | Baseline, no sharing | `bch3d_enc_baseline` | Mondal & Garani, IEEE T-MAG 2021 (2-D paper), extended to 3-D: one IDFFFT unit per output point, one conjugate-class unit per class (hard-coded twiddle, MSB-only multiplier), XOR array | Full place and route on **Virtex-7 xc7v2000tflg1925-1** |
 | 2 | Multiplier optimisation | `bch3d_enc_opt` | `encoder_optimisation.pdf` (compute-once, route-many): computation-class multiplier bank + 3,375 XOR trees | Full place and route on **Virtex-7 xc7v2000tflg1925-1** |
-| 3 | Time-multiplexed | `bch3d_enc_tm_asm` | `docs/time_multiplexed_plan.md` + assembly wrapper | **None.** Reuse the existing routed results in `reports/tm/` (same part, 6 ns). Explanation only. |
+| 3 | Time-multiplexed | `bch3d_enc_tm_asm` | `docs/time_multiplexed_plan.md` + assembly wrapper | Place and route on **Artix-7 xc7a200tfbg676-1** (no re-verification). The existing Virtex-7 6 ns results stay as the same-device reference. |
 
 No RTL simulation is repeated for any design: 1 and 2 already passed xsim at N=15 (3,215 vectors), 3 passed RTL and routed-netlist simulation.
 
-Using the same part for all three keeps the comparison on one device and speed grade.
+The comparison is made on Virtex-7 for all three (design 3 already has Virtex-7 results); the Artix-7 run of design 3 is an extra data point on a low-cost device.
+
+## Step 0: 225-point slice of design 1 (estimate before the full run)
+Run this first, so the full design-1 run is attempted with a known per-cone timing, power and memory profile.
+- Generate `bch3d_enc_baseline_slice225_reg`: the baseline restricted to the 225 output points of one `i''` plane, with the same input/output registers as the full wrapper (3,163 + 225 FFs). Expected ~77 k LUTs.
+- Synthesise and route it on xc7v2000tflg1925-1 with the same flow as Step 3, at 10 ns then tightened.
+- Record LUT/FF, WNS/Fmax, power, run time and peak memory.
+- Extrapolate for the full design: LUTs and dynamic power x15. Timing is a best case, because in the full design every input fans out 15x more. Peak memory x15 gives a rough check on whether the full run can fit in 15.3 GB.
+- Decide from this whether the full design-1 run (Step 3) is worth attempting. If the extrapolated memory is far above 15.3 GB, report the slice and the extrapolation instead.
+
+## Step 0b: design 3 on Artix-7
+- Same `scripts/vivado_pnr.tcl` flow, part `xc7a200tfbg676-1`, `rebuilt`, clock sweep 6 / 7 / 8 / 10 ns (Artix-7 is slower than Virtex-7, so 6 ns may fail).
+- Same reports as the Virtex-7 run, routed checkpoint and flattened netlist. No simulation.
+- Small (17 k LUTs), so it can run while the slice is being generated.
 
 ## Known numbers going in
 | Design | Synth LUTs (`flatten none`) | % of xc7v2000t (1,221,600) | FFs |
@@ -41,7 +54,7 @@ Both are purely combinational, so a routed run has no reg-to-reg paths. Generate
 - **Memory:** this machine has 15.3 GB RAM. Placing and routing 0.5-1.2 M LUTs on the 2000T can need much more. Each run is watched for peak memory; if Vivado runs out or swaps heavily, the run is stopped and that is recorded.
 - **Routability:** the 2000T is four stacked dies (SLRs). Design 1 at ~95% LUT would need heavy SLR crossings; failure to route is a likely outcome.
 - **Run time:** budget up to 12 h per P&R run, running one at a time in the background.
-- **Fallback if a run fails:** report synthesis numbers plus the failure point (placement, routing, or memory). Then, only if you approve, route a 225-point slice of that design on the same Virtex-7 part to get per-cone timing and power, clearly labelled as a slice.
+- **Fallback if a run fails:** report synthesis numbers plus the failure point (placement, routing, or memory). For design 1 the Step 0 slice numbers are the fallback; for design 2 a 225-point slice is run the same way only if you approve.
 
 ## Step 4: routed-netlist simulation
 - Design 2: simulate the routed `funcsim` netlist with sampled vectors (every 10th unit vector + random), if xsim fits in memory.
@@ -65,6 +78,8 @@ One page, `docs/three_designs.html`, published as an Artifact:
 ## Rough run time
 | Step | Time |
 |---|---|
+| 0 Design-1 slice: generate, synth, P&R | ~3-6 h |
+| 0b Design 3 on Artix-7 (4 periods) | ~1-2 h |
 | 1 Wrappers + wrapper check | ~1-2 h |
 | 2 Synthesis (2 designs × 2 modes) | several hours (design 1 synthesis was already long) |
 | 3 P&R design 2, then design 1 | up to 12 h each, may fail on memory |
