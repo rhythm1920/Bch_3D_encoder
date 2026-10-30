@@ -131,6 +131,141 @@ def generate_baseline_rtl(m: BCH3DModel, out_path: str):
         f.write("\n".join(lines))
 
 
+def slice_points(m: BCH3DModel, plane: int = 0) -> List[int]:
+    """Linear indices of the N^2 points with i'' == plane (one TM cycle's worth of outputs)."""
+    return [p for p in range(m.NNN) if m.lin_to_pt(p)[2] == plane]
+
+
+def base_slice_mod_name(m: BCH3DModel) -> str:
+    return f"bch3d_enc_baseline_slice{m.N * m.N}_reg_n{m.N}_t{m.T}"
+
+
+def generate_baseline_slice_reg_rtl(m: BCH3DModel, out_path: str, plane: int = 0):
+    """
+    Registered N^2-point slice of the baseline, for place-and-route estimates of the full design.
+    Same per-point units as `bch3d_enc_baseline`, but only for points with i'' == plane;
+    `msg` is registered on input and the slice on output, so timing is reg -> encoder -> reg.
+    Output bit k is codeword[slice_points(m)[k]].
+    """
+    N, T, M, K, NC = m.N, m.T, m.M, m.K, m.N_CLASS
+    tag = f"n{N}_t{T}"
+    pts = slice_points(m, plane)
+    S = len(pts)
+    mod_name = base_slice_mod_name(m)
+
+    pt_bits_list = []
+    for p in pts:
+        ia, ib, ic = m.lin_to_pt(p)
+        bits_p = []
+        for c in m.classes:
+            e = (-(ia * c.rep[0] + ib * c.rep[1] + ic * c.rep[2])) % N
+            mask = c.trace_masks[e]
+            for r in range(M):
+                if (mask >> r) & 1:
+                    bits_p.append(f"sub_msg[{M*c.idx + r}]")
+        pt_bits_list.append(bits_p)
+
+    lines = [
+        "// -----------------------------------------------------------------------------",
+        f"// Auto-generated registered baseline slice (N={N}, T={T}): {S} points with i''={plane}",
+        "// msg_q <= msg; slice <= per-point IDFFFT units(msg_q). Output bit k = codeword[pts[k]]",
+        "// pts = " + " ".join(str(p) for p in pts),
+        "// -----------------------------------------------------------------------------",
+        "`timescale 1ns/1ps",
+        "",
+    ]
+    for w in sorted({len(b) for b in pt_bits_list}):
+        lines += [
+            f"module bch3d_base_pt_{tag}_w{w} (",
+            f"    input  wire [{w-1}:0] in_bits,",
+            "    output wire         out_bit",
+            ");",
+            "    assign out_bit = ^in_bits;",
+            "endmodule",
+            "",
+        ]
+    lines += [
+        f"module {mod_name} (",
+        "    input  wire          clk,",
+        f"    input  wire [{K-1}:0] msg,",
+        f"    output reg  [{S-1}:0] slice",
+        ");",
+        f"    reg  [{K-1}:0] msg_q;",
+        f"    wire [{M*NC-1}:0] sub_msg;",
+        f"    wire [{S-1}:0] slice_c;",
+        "",
+        f"    bch3d_msg_to_submsg #(.N({N}), .T({T}), .PRIM_POLY({M+1}'d{m.prim_poly})) u_submsg (",
+        "        .msg     (msg_q),",
+        "        .sub_msg (sub_msg)",
+        "    );",
+        "",
+    ]
+    for k, bits_p in enumerate(pt_bits_list):
+        concat_expr = "{" + ", ".join(bits_p) + "}"
+        lines.append(f"    bch3d_base_pt_{tag}_w{len(bits_p)} u_pt_p{pts[k]} (.in_bits({concat_expr}), .out_bit(slice_c[{k}]));")
+    lines += [
+        "",
+        "    always @(posedge clk) begin",
+        "        msg_q <= msg;",
+        "        slice <= slice_c;",
+        "    end",
+        "endmodule",
+        "",
+    ]
+    with open(out_path, "w", encoding="utf-8") as f:
+        f.write("\n".join(lines))
+
+
+def generate_baseline_slice_testbench(m: BCH3DModel, tb_path: str, n_vecs: int, msg_mem: str, cw_mem: str,
+                                      plane: int = 0):
+    """Pipelined TB: one vector per cycle, slice compared against golden codeword bits 2 cycles later."""
+    N, T, K, NNN = m.N, m.T, m.K, m.NNN
+    tag = f"n{N}_t{T}"
+    pts = slice_points(m, plane)
+    S = len(pts)
+    sel = "{" + ", ".join(f"cw[{p}]" for p in reversed(pts)) + "}"
+    L = [
+        "`timescale 1ns/1ps",
+        f"module tb_{base_slice_mod_name(m)};",
+        f"    localparam integer K_BITS = {K}, NNN = {NNN}, S = {S}, N_VECS = {n_vecs};",
+        "    reg clk = 0;",
+        "    reg  [K_BITS-1:0] msg = 0;",
+        "    wire [S-1:0] slice;",
+        "    reg  [K_BITS-1:0] vec_msg [0:N_VECS-1];",
+        "    reg  [NNN-1:0]    vec_cw  [0:N_VECS-1];",
+        "    reg  [NNN-1:0]    cw;",
+        "    reg  [S-1:0]      exp_s;",
+        "    integer errors = 0, k;",
+        "    always #5 clk = ~clk;",
+        f"    {base_slice_mod_name(m)} dut (.clk(clk), .msg(msg), .slice(slice));",
+        "",
+        "    initial begin",
+        f'        $readmemh("{msg_mem}", vec_msg);',
+        f'        $readmemh("{cw_mem}",  vec_cw);',
+        "        for (k = 0; k < N_VECS + 2; k = k + 1) begin",
+        "            @(negedge clk);",
+        "            if (k >= 2) begin",
+        "                cw = vec_cw[k-2];",
+        f"                exp_s = {sel};",
+        "                if (slice !== exp_s) begin",
+        '                    if (errors < 10) $display("ERROR vec %0d: slice mismatch", k-2);',
+        "                    errors = errors + 1;",
+        "                end",
+        "            end",
+        "            if (k < N_VECS) msg = vec_msg[k];",
+        "        end",
+        '        $display("INFO: Checked %0d vectors (registered baseline slice), errors=%0d", N_VECS, errors);',
+        '        if (errors == 0) $display("PASS");',
+        '        else             $display("FAIL: %0d errors", errors);',
+        "        $finish;",
+        "    end",
+        "endmodule",
+        "",
+    ]
+    with open(tb_path, "w", encoding="utf-8") as f:
+        f.write("\n".join(L))
+
+
 def generate_opt_rtl(m: BCH3DModel, out_path: str):
     """
     Emit `bch3d_enc_opt.v` for parameters (m.N, m.T, m.prim_poly).
@@ -823,6 +958,10 @@ def main():
     generate_tm_asm_rtl(m, os.path.join(args.rtl_dir, tm_asm_mod_name(m) + ".v"))
     generate_tm_asm_testbench(
         m, os.path.join(args.tb_dir, f"tb_bch3d_enc_tm_asm_{tag}.v"), n_vecs, msg_mem, cw_mem
+    )
+    generate_baseline_slice_reg_rtl(m, os.path.join(args.rtl_dir, base_slice_mod_name(m) + ".v"))
+    generate_baseline_slice_testbench(
+        m, os.path.join(args.tb_dir, f"tb_{base_slice_mod_name(m)}.v"), n_vecs, msg_mem, cw_mem
     )
 
 

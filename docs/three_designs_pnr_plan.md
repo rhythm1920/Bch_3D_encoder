@@ -21,6 +21,23 @@ Run this first, so the full design-1 run is attempted with a known per-cone timi
 - Extrapolate for the full design: LUTs and dynamic power x15. Timing is a best case, because in the full design every input fans out 15x more. Peak memory x15 gives a rough check on whether the full run can fit in 15.3 GB.
 - Decide from this whether the full design-1 run (Step 3) is worth attempting. If the extrapolated memory is far above 15.3 GB, report the slice and the extrapolation instead.
 
+### Step 0 result (2026-10-30, reports in `reports/baseline_slice/`)
+`bch3d_enc_baseline_slice225_reg_n15_t2`, xc7v2000tflg1925-1, `rebuilt`, 10 ns. RTL xsim: 3,170 vectors, 0 errors.
+
+| | Slice (measured) | Full design 1 (x15 estimate) |
+|---|---:|---:|
+| LUTs | 37,882 (3.1%) | ~568 k (46%) |
+| FFs | 3,354 | ~6.5 k (msg + codeword regs, not x15) |
+| WNS at 10 ns | +1.618 ns, fully routed, 0 errors | worse (inputs fan out 15x more) |
+| Critical path | 8.348 ns, 5 LUT levels, 94% routing | - |
+| Fmax | ~119 MHz | below 119 MHz |
+| Power (vectorless) | 3.03 W (2.36 dynamic, 0.67 static) | ~36 W dynamic + static |
+| Vivado peak memory | 5.3 GB (route gain 1.55 GB) | roughly 35-40 GB |
+| Run time | 11.7 min | many hours |
+
+- `rebuilt` shares logic inside the slice, so the slice is half the ~77 k expected from `flatten none`; the x15 estimate is close to design 2's synthesis size (544,597).
+- Memory: synthesis + place + route added ~4.4 GB over a ~0.6 GB base for 38 k LUTs. Scaling that by 15 is far above the 15.3 GB on this machine, so a full design-1 run is very likely to run out of memory here.
+
 ## Step 0b: design 3 on Artix-7
 - Same `scripts/vivado_pnr.tcl` flow, part `xc7a200tfbg676-1`, `rebuilt`, clock sweep 6 / 7 / 8 / 10 ns (Artix-7 is slower than Virtex-7, so 6 ns may fail).
 - Same reports as the Virtex-7 run, routed checkpoint and flattened netlist. No simulation.
