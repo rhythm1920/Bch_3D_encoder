@@ -100,6 +100,9 @@ Both are purely combinational, so a routed run has no reg-to-reg paths. Generate
 - Timing would close at 10 ns if it routed (post-place WNS > 0), so the failure is routability only.
 - Design 1 has the same all-to-all wiring and is larger, so a full place and route would fail the same way and would not fit in memory. Per the fallback rule it is reported from the slice (Step 0) plus a synthesis-only run with `rebuilt`.
 
+### Design 1, synthesis-only with `rebuilt` (2026-10-31)
+Stopped by the memory guard (free RAM < 0.5 GB) after 13.5 min, at 10.2 GB peak, during Cross Boundary and Area Optimization. Design 1 cannot even be synthesised flattened on this 15.3 GB machine; the slice x15 estimate stands.
+
 ### Risks
 - **Memory:** this machine has 15.3 GB RAM. Placing and routing 0.5-1.2 M LUTs on the 2000T can need much more. Each run is watched for peak memory; if Vivado runs out or swaps heavily, the run is stopped and that is recorded.
 - **Routability:** the 2000T is four stacked dies (SLRs). Design 1 at ~95% LUT would need heavy SLR crossings; failure to route is a likely outcome.

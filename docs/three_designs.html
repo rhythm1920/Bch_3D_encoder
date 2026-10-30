@@ -88,6 +88,6 @@ svg{max-width:100%;height:auto;color:var(--fg)}
 <tr><td>Energy / codeword</td><td>(full est.) ~0.31 µJ</td><td>–</td><td>0.30 µJ</td><td>0.25 µJ</td></tr>
 <tr><td>Peak Vivado memory</td><td>5.3 GB</td><td>9.2 GB</td><td>–</td><td>–</td></tr>
 </table></div>
-<p class="mut">Design 2 is not limited by its LUT count, since it uses only 15% of the device. Every one of its trees needs wires from across the whole message, the router's congestion peaked at 99.8%, and 66,912 routing nodes remained overlapping. Design 1 has the same wiring pattern with three times the logic, so its full run was skipped. Its numbers are the measured slice scaled ×15. Design 3 is the only full encoder that fits and routes, at roughly 1/10 of design 2's area.</p>
+<p class="mut">Design 2 is not limited by its LUT count, since it uses only 15% of the device. Every one of its trees needs wires from across the whole message, the router's congestion peaked at 99.8%, and 66,912 routing nodes remained overlapping. Design 1 has the same wiring pattern with three times the logic, so its full place and route was skipped. Even a synthesis-only run of design 1 ran out of memory (stopped at 10.2 GB on a 15.3 GB machine). Its numbers are the measured slice scaled ×15. Design 3 is the only full encoder that fits and routes, at roughly 1/10 of design 2's area.</p>
 </section>
 </main>
