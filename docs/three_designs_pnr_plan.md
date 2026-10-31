@@ -100,6 +100,22 @@ Both are purely combinational, so a routed run has no reg-to-reg paths. Generate
 - Timing would close at 10 ns if it routed (post-place WNS > 0), so the failure is routability only.
 - Design 1 has the same all-to-all wiring and is larger, so a full place and route would fail the same way and would not fit in memory. Per the fallback rule it is reported from the slice (Step 0) plus a synthesis-only run with `rebuilt`.
 
+### Design 2, 225-point slice (2026-10-31, reports in `reports/opt_slice/`)
+`bch3d_enc_opt_slice225_reg_n15_t2`: standalone slice (10,608 bank products + 225 trees of 798 inputs, i''=0). A first version that instantiated the full core and let synthesis prune it ran out of memory (8.8 GB) in area optimisation. RTL xsim: 3,170 vectors, 0 errors.
+
+| | D2 slice (measured) | D2 full (x15 estimate) | D1 slice (for reference) |
+|---|---:|---:|---:|
+| LUTs | 12,816 (1.05%) | ~192 k (full synth: 181,728) | 37,882 |
+| FFs | 3,354 | 6,538 | 3,354 |
+| WNS at 10 ns | +2.332, fully routed, 0 errors | did not route | +1.618 |
+| Critical path | 7.634 ns, 5 LUT levels, 91% routing | - | 8.348 ns, 94% routing |
+| Fmax | ~130 MHz | - | ~119 MHz |
+| Power | 1.50 W (0.85 dynamic, 0.65 static) | ~12.8 W dynamic | 3.03 W (2.36 dynamic) |
+| Peak memory / run time | 8.6 GB / 5.4 min | - | 5.3 GB / 11.7 min |
+
+- The multiplier sharing cuts the slice's LUTs by 3x and its dynamic power by 2.8x compared with design 1.
+- The slice routes easily, but the full design does not: with 15 times as many trees reading the same inputs, wiring is the limit, not logic.
+
 ### Design 1, synthesis-only with `rebuilt` (2026-10-31)
 Stopped by the memory guard (free RAM < 0.5 GB) after 13.5 min, at 10.2 GB peak, during Cross Boundary and Area Optimization. Design 1 cannot even be synthesised flattened on this 15.3 GB machine; the slice x15 estimate stands.
 

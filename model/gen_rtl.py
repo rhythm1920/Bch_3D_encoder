@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+﻿#!/usr/bin/env python3
 """
 RTL and Testbench Generator for the 3-D BCH Spectral-Domain Encoder.
 
@@ -216,17 +216,106 @@ def generate_baseline_slice_reg_rtl(m: BCH3DModel, out_path: str, plane: int = 0
         f.write("\n".join(lines))
 
 
+def opt_slice_mod_name(m: BCH3DModel) -> str:
+    return f"bch3d_enc_opt_slice{m.N * m.N}_reg_n{m.N}_t{m.T}"
+
+
+def generate_core_slice_reg_rtl(m: BCH3DModel, core: str, mod_name: str, out_path: str, plane: int = 0):
+    """
+    Registered N^2-point slice of a full combinational encoder `core`: msg_q <= msg;
+    slice <= core(msg_q) bits at slice_points(m). Synthesis prunes the unused trees and products,
+    so the slice keeps the core's architecture unchanged.
+    """
+    K, NNN = m.K, m.NNN
+    pts = slice_points(m, plane)
+    S = len(pts)
+    sel = "{" + ", ".join(f"cw_c[{p}]" for p in reversed(pts)) + "}"
+    L = [
+        f"// Auto-generated registered {S}-point slice (i''={plane}) of {core} (latency 2 cycles)",
+        "`timescale 1ns/1ps",
+        f"module {mod_name} (",
+        "    input  wire          clk,",
+        f"    input  wire [{K-1}:0] msg,",
+        f"    output reg  [{S-1}:0] slice",
+        ");",
+        f"    reg  [{K-1}:0] msg_q;",
+        f"    wire [{NNN-1}:0] cw_c;",
+        f"    {core} u_core (.msg(msg_q), .codeword(cw_c));",
+        "    always @(posedge clk) begin",
+        "        msg_q <= msg;",
+        f"        slice <= {sel};",
+        "    end",
+        "endmodule",
+        "",
+    ]
+    with open(out_path, "w", encoding="utf-8") as f:
+        f.write("\n".join(L))
+
+
+def generate_opt_slice_reg_rtl(m: BCH3DModel, out_path: str, plane: int = 0):
+    """
+    Standalone registered N^2-point slice of `bch3d_enc_opt`: only the bank products used by the
+    points with i'' == plane, and one NC-input XOR tree per point. Same structure as the full
+    design, without elaborating it (the full core runs synthesis out of memory before pruning).
+    """
+    N, T, M, K, NC = m.N, m.T, m.M, m.K, m.N_CLASS
+    pts = slice_points(m, plane)
+    S = len(pts)
+    used = {}  # (class_idx, exp) -> bank wire index
+    trees = []
+    for p in pts:
+        ia, ib, ic = m.lin_to_pt(p)
+        terms = []
+        for c in m.classes:
+            e = (-(ia * c.rep[0] + ib * c.rep[1] + ic * c.rep[2])) % N
+            key = (c.idx, c.trace_masks[e])  # same mask -> same product
+            if key not in used:
+                used[key] = len(used)
+            terms.append(f"mul_out[{used[key]}]")
+        trees.append(terms)
+    L = [
+        f"// Auto-generated registered opt slice (N={N}, T={T}): {S} points with i''={plane}",
+        f"// Bank: {len(used)} products; {S} x {NC}-input XOR trees. Output bit k = codeword[pts[k]]",
+        "`timescale 1ns/1ps",
+        f"module {opt_slice_mod_name(m)} (",
+        "    input  wire          clk,",
+        f"    input  wire [{K-1}:0] msg,",
+        f"    output reg  [{S-1}:0] slice",
+        ");",
+        f"    reg  [{K-1}:0] msg_q;",
+        f"    wire [{M*NC-1}:0] sub_msg;",
+        f"    wire [{len(used)-1}:0] mul_out;",
+        f"    wire [{S-1}:0] slice_c;",
+        f"    bch3d_msg_to_submsg #(.N({N}), .T({T}), .PRIM_POLY({M+1}'d{m.prim_poly})) u_submsg (",
+        "        .msg (msg_q), .sub_msg (sub_msg));",
+    ]
+    for (ci, mask), w in used.items():
+        L.append(f"    assign mul_out[{w}] = {_s_mask_off('sub_msg', M*ci, mask, M)};")
+    for k, terms in enumerate(trees):
+        L.append(f"    assign slice_c[{k}] = ^{{{', '.join(terms)}}};")
+    L += [
+        "    always @(posedge clk) begin",
+        "        msg_q <= msg;",
+        "        slice <= slice_c;",
+        "    end",
+        "endmodule",
+        "",
+    ]
+    with open(out_path, "w", encoding="utf-8") as f:
+        f.write("\n".join(L))
+
+
 def generate_baseline_slice_testbench(m: BCH3DModel, tb_path: str, n_vecs: int, msg_mem: str, cw_mem: str,
-                                      plane: int = 0):
+                                      plane: int = 0, mod_name: str = None):
     """Pipelined TB: one vector per cycle, slice compared against golden codeword bits 2 cycles later."""
     N, T, K, NNN = m.N, m.T, m.K, m.NNN
-    tag = f"n{N}_t{T}"
+    mod_name = mod_name or base_slice_mod_name(m)
     pts = slice_points(m, plane)
     S = len(pts)
     sel = "{" + ", ".join(f"cw[{p}]" for p in reversed(pts)) + "}"
     L = [
         "`timescale 1ns/1ps",
-        f"module tb_{base_slice_mod_name(m)};",
+        f"module tb_{mod_name};",
         f"    localparam integer K_BITS = {K}, NNN = {NNN}, S = {S}, N_VECS = {n_vecs};",
         "    reg clk = 0;",
         "    reg  [K_BITS-1:0] msg = 0;",
@@ -237,7 +326,7 @@ def generate_baseline_slice_testbench(m: BCH3DModel, tb_path: str, n_vecs: int, 
         "    reg  [S-1:0]      exp_s;",
         "    integer errors = 0, k;",
         "    always #5 clk = ~clk;",
-        f"    {base_slice_mod_name(m)} dut (.clk(clk), .msg(msg), .slice(slice));",
+        f"    {mod_name} dut (.clk(clk), .msg(msg), .slice(slice));",
         "",
         "    initial begin",
         f'        $readmemh("{msg_mem}", vec_msg);',
@@ -255,6 +344,69 @@ def generate_baseline_slice_testbench(m: BCH3DModel, tb_path: str, n_vecs: int, 
         "            if (k < N_VECS) msg = vec_msg[k];",
         "        end",
         '        $display("INFO: Checked %0d vectors (registered baseline slice), errors=%0d", N_VECS, errors);',
+        '        if (errors == 0) $display("PASS");',
+        '        else             $display("FAIL: %0d errors", errors);',
+        "        $finish;",
+        "    end",
+        "endmodule",
+        "",
+    ]
+    with open(tb_path, "w", encoding="utf-8") as f:
+        f.write("\n".join(L))
+
+
+def generate_reg_wrapper_rtl(m: BCH3DModel, core: str, out_path: str):
+    """`<core>_reg`: msg_q <= msg; codeword <= core(msg_q). Gives reg -> encoder -> reg timing."""
+    K, NNN = m.K, m.NNN
+    L = [
+        f"// Auto-generated registered wrapper around {core} (latency 2 cycles)",
+        "`timescale 1ns/1ps",
+        f"module {core}_reg (",
+        "    input  wire          clk,",
+        f"    input  wire [{K-1}:0] msg,",
+        f"    output reg  [{NNN-1}:0] codeword",
+        ");",
+        f"    reg  [{K-1}:0] msg_q;",
+        f"    wire [{NNN-1}:0] cw_c;",
+        f"    {core} u_core (.msg(msg_q), .codeword(cw_c));",
+        "    always @(posedge clk) begin",
+        "        msg_q    <= msg;",
+        "        codeword <= cw_c;",
+        "    end",
+        "endmodule",
+        "",
+    ]
+    with open(out_path, "w", encoding="utf-8") as f:
+        f.write("\n".join(L))
+
+
+def generate_reg_wrapper_testbench(m: BCH3DModel, core: str, tb_path: str, n_vecs: int, msg_mem: str, cw_mem: str):
+    """One vector per cycle into `<core>_reg`; codeword compared with golden 2 cycles later."""
+    K, NNN = m.K, m.NNN
+    L = [
+        "`timescale 1ns/1ps",
+        f"module tb_{core}_reg;",
+        f"    localparam integer K_BITS = {K}, NNN = {NNN}, N_VECS = {n_vecs};",
+        "    reg clk = 0;",
+        "    reg  [K_BITS-1:0] msg = 0;",
+        "    wire [NNN-1:0] codeword;",
+        "    reg  [K_BITS-1:0] vec_msg [0:N_VECS-1];",
+        "    reg  [NNN-1:0]    vec_cw  [0:N_VECS-1];",
+        "    integer errors = 0, k;",
+        "    always #5 clk = ~clk;",
+        f"    {core}_reg dut (.clk(clk), .msg(msg), .codeword(codeword));",
+        "    initial begin",
+        f'        $readmemh("{msg_mem}", vec_msg);',
+        f'        $readmemh("{cw_mem}",  vec_cw);',
+        "        for (k = 0; k < N_VECS + 2; k = k + 1) begin",
+        "            @(negedge clk);",
+        "            if (k >= 2 && codeword !== vec_cw[k-2]) begin",
+        '                if (errors < 10) $display("ERROR vec %0d: codeword mismatch", k-2);',
+        "                errors = errors + 1;",
+        "            end",
+        "            if (k < N_VECS) msg = vec_msg[k];",
+        "        end",
+        f'        $display("INFO: Checked %0d vectors ({core}_reg), errors=%0d", N_VECS, errors);',
         '        if (errors == 0) $display("PASS");',
         '        else             $display("FAIL: %0d errors", errors);',
         "        $finish;",
@@ -959,9 +1111,19 @@ def main():
     generate_tm_asm_testbench(
         m, os.path.join(args.tb_dir, f"tb_bch3d_enc_tm_asm_{tag}.v"), n_vecs, msg_mem, cw_mem
     )
-    generate_baseline_slice_reg_rtl(m, os.path.join(args.rtl_dir, base_slice_mod_name(m) + ".v"))
+    for core in (base_name[:-2], opt_name[:-2]):
+        generate_reg_wrapper_rtl(m, core, os.path.join(args.rtl_dir, f"{core}_reg.v"))
+        generate_reg_wrapper_testbench(
+            m, core, os.path.join(args.tb_dir, f"tb_{core}_reg.v"), n_vecs, msg_mem, cw_mem
+        )
+    generate_baseline_slice_reg_rtl(m,os.path.join(args.rtl_dir, base_slice_mod_name(m) + ".v"))
     generate_baseline_slice_testbench(
         m, os.path.join(args.tb_dir, f"tb_{base_slice_mod_name(m)}.v"), n_vecs, msg_mem, cw_mem
+    )
+    generate_opt_slice_reg_rtl(m, os.path.join(args.rtl_dir, opt_slice_mod_name(m) + ".v"))
+    generate_baseline_slice_testbench(
+        m, os.path.join(args.tb_dir, f"tb_{opt_slice_mod_name(m)}.v"), n_vecs, msg_mem, cw_mem,
+        mod_name=opt_slice_mod_name(m)
     )
 
 

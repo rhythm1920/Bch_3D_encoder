@@ -86,6 +86,7 @@ svg{max-width:100%;height:auto;color:var(--fg)}
 <tr><td>Power</td><td>3.03 W</td><td>–</td><td>3.35 W</td><td>1.92 W</td></tr>
 <tr><td>Codeword throughput</td><td>(full est.) ≤402 Gb/s</td><td>(if routed) 337 Gb/s</td><td>37.5 Gb/s</td><td>26.5 Gb/s</td></tr>
 <tr><td>Energy / codeword</td><td>(full est.) ~0.31 µJ</td><td>–</td><td>0.30 µJ</td><td>0.25 µJ</td></tr>
+<tr><td>D2 225-point slice (routed)</td><td colspan="4" style="text-align:left">12,816 LUTs · 10 ns / WNS +2.332 (~130 MHz) · 1.50 W (0.85 W dynamic) · critical path 7.63 ns, 91% routing. Design 1's slice needs 37,882 LUTs and 2.36 W dynamic, so the shared bank saves 3× in area and 2.8× in power.</td></tr>
 <tr><td>Peak Vivado memory</td><td>5.3 GB</td><td>9.2 GB</td><td>–</td><td>–</td></tr>
 </table></div>
 <p class="mut">Design 2 is not limited by its LUT count, since it uses only 15% of the device. Every one of its trees needs wires from across the whole message, the router's congestion peaked at 99.8%, and 66,912 routing nodes remained overlapping. Design 1 has the same wiring pattern with three times the logic, so its full place and route was skipped. Even a synthesis-only run of design 1 ran out of memory (stopped at 10.2 GB on a 15.3 GB machine). Its numbers are the measured slice scaled ×15. Design 3 is the only full encoder that fits and routes, at roughly 1/10 of design 2's area.</p>
