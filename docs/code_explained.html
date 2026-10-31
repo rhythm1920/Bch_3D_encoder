@@ -2,340 +2,257 @@
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&family=Fraunces:opsz,wght@9..144,600&display=swap">
 <style>
-/* Layout: sticky file index on the left (stacks on phones), one card per function on the right, grouped by file. */
-:root {
-  --bg: #f1f4f8; --surface: #ffffff; --ink: #14202e; --muted: #556375; --line: #c9d1dc;
-  --accent: #1f5fbf; --accent-soft: #dce8fa; --hot: #b4540a; --hot-soft: #fbe5d0; --code: #eef2f7;
-  --display: "Fraunces", Georgia, serif; --body: "IBM Plex Sans", system-ui, sans-serif; --mono: "IBM Plex Mono", ui-monospace, Consolas, monospace;
-}
-@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
-  --bg: #0d131a; --surface: #141c26; --ink: #e3e9f1; --muted: #93a0b2; --line: #2b3745;
-  --accent: #6ba4f2; --accent-soft: #1b2e4a; --hot: #f2a363; --hot-soft: #3a2815; --code: #0f1720; color-scheme: dark; } }
-:root[data-theme="dark"] {
-  --bg: #0d131a; --surface: #141c26; --ink: #e3e9f1; --muted: #93a0b2; --line: #2b3745;
-  --accent: #6ba4f2; --accent-soft: #1b2e4a; --hot: #f2a363; --hot-soft: #3a2815; --code: #0f1720; color-scheme: dark; }
-
-body { background: var(--bg); color: var(--ink); font: 15px/1.6 var(--body);
-  padding-block: 32px 64px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
-.wrap { max-width: 1180px; margin: 0 auto; display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 32px; }
-@media (max-width: 860px) { .wrap { grid-template-columns: minmax(0, 1fr); } aside { position: static !important; } }
-header { grid-column: 1 / -1; }
-h1 { font: 600 clamp(28px, 4vw, 40px)/1.15 var(--display); margin: 0 0 8px; text-wrap: balance; }
-h2 { font: 600 24px/1.2 var(--display); margin: 0; text-wrap: balance; }
-h3 { font: 500 15px/1.35 var(--mono); margin: 0; color: var(--accent); overflow-wrap: anywhere; }
-p { margin: 0 0 8px; max-width: 72ch; }
-.lede { color: var(--muted); font-size: 16px; max-width: 76ch; }
-.tag { font: 500 12px var(--mono); color: var(--accent); letter-spacing: .06em; }
-code { font-family: var(--mono); font-size: .9em; background: var(--code); padding: 1px 4px; border-radius: 3px; }
-aside { position: sticky; top: 16px; align-self: start; display: flex; flex-direction: column; gap: 14px; font-size: 13px; }
-aside .grp { display: flex; flex-direction: column; gap: 2px; }
-aside .grp b { font: 600 11px var(--body); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin-bottom: 2px; }
-aside a { color: var(--ink); text-decoration: none; font-family: var(--mono); font-size: 12px; padding: 2px 6px; border-radius: 3px; overflow-wrap: anywhere; }
-aside a:hover, aside a:focus-visible { background: var(--accent-soft); outline: none; }
-main { display: flex; flex-direction: column; gap: 40px; min-width: 0; }
-section.file { display: flex; flex-direction: column; gap: 14px; }
-.filehead { display: flex; flex-direction: column; gap: 4px; border-bottom: 1px solid var(--line); padding-bottom: 10px; }
-.filehead .path { font: 13px var(--mono); color: var(--muted); }
-.fn { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 14px 16px; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
-.fn .sig { font: 12.5px/1.5 var(--mono); background: var(--code); padding: 8px 10px; border-radius: 4px; overflow-x: auto; white-space: pre; }
-.fn dl { display: grid; grid-template-columns: 96px minmax(0,1fr); gap: 4px 12px; margin: 0; font-size: 14px; }
-.fn dt { font: 600 11px/1.9 var(--body); letter-spacing: .07em; text-transform: uppercase; color: var(--muted); }
-.fn dd { margin: 0; min-width: 0; }
-.fn ol, .fn ul { margin: 0; padding-left: 18px; }
-.fn.key { border-color: var(--accent); }
-.fn.key::before { content: "core function"; font: 600 10px var(--body); letter-spacing: .08em; text-transform: uppercase; color: var(--accent); }
-figure { margin: 0; background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 14px; min-width: 0; }
-.scroll { overflow-x: auto; }
-figure svg { display: block; width: 100%; min-width: 760px; height: auto; }
-figcaption { color: var(--muted); font-size: 13px; margin-top: 8px; }
-svg text { fill: currentColor; font: 12px var(--body); }
-svg .m { font-family: var(--mono); font-size: 11px; }
-svg .s { fill: var(--muted); font-size: 11px; }
-svg .box { fill: var(--surface); stroke: currentColor; stroke-width: 1.2; }
-svg .py { fill: var(--accent-soft); stroke: var(--accent); stroke-width: 1.3; }
-svg .v { fill: var(--hot-soft); stroke: var(--hot); stroke-width: 1.3; }
-svg .wire { fill: none; stroke: currentColor; stroke-width: 1.3; }
-svg .ah { fill: currentColor; }
+:root{--bg:#f1f4f8;--surface:#ffffff;--ink:#14202e;--muted:#556375;--line:#c9d1dc;--accent:#1f5fbf;--accent-soft:#dce8fa;--hot:#b4540a;--hot-soft:#fbe5d0;--code:#eef2f7;
+--display:"Fraunces",Georgia,serif;--body:"IBM Plex Sans",system-ui,sans-serif;--mono:"IBM Plex Mono",ui-monospace,Consolas,monospace}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0d131a;--surface:#141c26;--ink:#e3e9f1;--muted:#93a0b2;--line:#2b3745;--accent:#6ba4f2;--accent-soft:#1b2e4a;--hot:#f2a363;--hot-soft:#3a2815;--code:#0f1720;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#0d131a;--surface:#141c26;--ink:#e3e9f1;--muted:#93a0b2;--line:#2b3745;--accent:#6ba4f2;--accent-soft:#1b2e4a;--hot:#f2a363;--hot-soft:#3a2815;--code:#0f1720;color-scheme:dark}
+body{background:var(--bg);color:var(--ink);font:15px/1.65 var(--body);padding-block:32px 64px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.wrap{max-width:1180px;margin:0 auto;display:grid;grid-template-columns:230px minmax(0,1fr);gap:32px}
+@media (max-width:860px){.wrap{grid-template-columns:minmax(0,1fr)}aside{position:static!important}}
+header{grid-column:1/-1}
+h1{font:600 clamp(28px,4vw,40px)/1.15 var(--display);margin:0 0 8px;text-wrap:balance}
+h2{font:600 24px/1.2 var(--display);margin:0;text-wrap:balance}
+h3{font:500 15px/1.35 var(--mono);margin:0;color:var(--accent);overflow-wrap:anywhere}
+p{margin:0;max-width:74ch}
+.lede{color:var(--muted);font-size:16px;max-width:78ch}
+.tag{font:500 12px var(--mono);color:var(--accent);letter-spacing:.06em;text-transform:uppercase}
+code{font-family:var(--mono);font-size:.88em;background:var(--code);padding:1px 4px;border-radius:3px}
+pre{font:13px/1.5 var(--mono);background:var(--code);border:1px solid var(--line);border-radius:6px;padding:10px 12px;overflow-x:auto;margin:0}
+pre code{background:none;padding:0}
+aside{position:sticky;top:16px;align-self:start;display:grid;gap:4px;font-size:13px}
+aside a{color:var(--muted);text-decoration:none;padding:2px 0}aside a:hover{color:var(--accent)}
+aside b{color:var(--ink);margin-top:10px;font-size:12px;letter-spacing:.05em;text-transform:uppercase}
+main{display:grid;gap:40px;min-width:0}
+section{display:grid;gap:16px}
+.fn{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:18px;display:grid;gap:10px;min-width:0}
+.fn h4{margin:6px 0 0;font:600 12px var(--body);letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.math{background:var(--accent-soft);border-left:3px solid var(--accent);padding:10px 14px;border-radius:0 6px 6px 0;display:grid;gap:6px;min-width:0;overflow-x:auto}
+.ex{background:var(--hot-soft);border-left:3px solid var(--hot);padding:10px 14px;border-radius:0 6px 6px 0;display:grid;gap:6px;min-width:0;overflow-x:auto}
+.math p,.ex p{max-width:none}
+.f{font-family:var(--mono);font-size:14px;white-space:nowrap}
+ol,ul{margin:0;padding-left:20px;display:grid;gap:4px;max-width:74ch}
+.tw{overflow-x:auto}table{border-collapse:collapse;font-size:14px}th,td{border-bottom:1px solid var(--line);padding:4px 10px;text-align:left;white-space:nowrap}th{color:var(--muted)}
 </style>
-
 <div class="wrap">
 <header>
-  <p class="tag">BCH3D ENCODER · N=15, T=2 · GF(16), x⁴+x+1</p>
-  <h1>How the code builds the encoder</h1>
-  <p class="lede">Every function in the repository, file by file: what it computes, how, and who calls it. Python builds the maths and writes the Verilog; Verilog is checked in xsim and built in Vivado. The cards marked "core function" carry the main ideas.</p>
+<div class="tag">Bch_3D_encoder_tm · branch time-multiplexed</div>
+<h1>How the 3-D BCH encoder code works</h1>
+<p class="lede">This walkthrough first derives the maths that every file relies on. It then goes through each function and says what the code actually computes, line by line where that matters. It explains why the computation is correct and gives real values from the N=15, T=2 build. Field: GF(16) built from x⁴+x+1, with N = 15, K = 3,163 message bits and 3,375 codeword bits.</p>
 </header>
 
-<aside aria-label="Files and functions">
-  <div class="grp"><b>Overview</b><a href="#flow">Tool flow</a><a href="#notation">Notation</a></div>
-  <div class="grp"><b>model/bch3d.py</b>
-    <a href="#ClassInfo">ClassInfo</a><a href="#init">BCH3DModel.__init__</a><a href="#mul">mul / sq</a><a href="#trace_d">trace_d</a><a href="#lin">lin_to_pt / pt_to_lin</a><a href="#nullcube">_in_null_cube</a><a href="#build">_build_classes</a><a href="#m2s">msg_to_submsg</a><a href="#idffft">encode_idffft</a><a href="#trace">encode_trace</a><a href="#dffft">decode_dffft_check_nulls</a><a href="#st1">self_test</a></div>
-  <div class="grp"><b>model/bch3d_tm.py</b><a href="#enc_tm">encode_tm</a><a href="#st2">self_test</a></div>
-  <div class="grp"><b>model/bch3d_cse.py</b><a href="#normals">normals_n15</a><a href="#groups">build_groups</a><a href="#key_of">key_of</a><a href="#enc_cse">encode_cse</a><a href="#cost">cost / main</a></div>
-  <div class="grp"><b>model/gen_rtl.py</b>
-    <a href="#helpers">_xor_expr / _s_mask_*</a><a href="#g_base">generate_baseline_rtl</a><a href="#g_slice">slice_points / slice RTL</a><a href="#g_slice_tb">slice testbench</a><a href="#g_reg">reg wrapper + TB</a><a href="#g_opt">generate_opt_rtl</a><a href="#g_tm">generate_tm_rtl</a><a href="#g_asm">generate_tm_asm_rtl</a><a href="#g_asm_tb">TM / asm testbenches</a><a href="#g_tb">generate_testbench</a><a href="#g_main">main</a></div>
-  <div class="grp"><b>rtl/bch3d_msg_to_submsg.v</b><a href="#v_field">field functions</a><a href="#v_class">class functions</a><a href="#v_table">build_table / sub_mask</a><a href="#v_gen">generate block</a></div>
-  <div class="grp"><b>scripts/</b><a href="#s_gentb">gen_tb.py</a><a href="#s_sim">sim.ps1</a><a href="#s_ooc">vivado_ooc.tcl</a><a href="#s_pnr">vivado_pnr.tcl</a></div>
+<aside>
+<b>Maths</b>
+<a href="#m-field">1 · GF(16)</a><a href="#m-dft">2 · 3-D spectrum and IDFT</a><a href="#m-conj">3 · Why the codeword is binary</a><a href="#m-trace">4 · The trace formula</a><a href="#m-null">5 · Null cube and K</a><a href="#m-lin">6 · Linearity</a>
+<b>model/bch3d.py</b>
+<a href="#init">__init__ / tables</a><a href="#mul">mul, sq</a><a href="#trace">trace_d</a><a href="#pt">lin_to_pt, pt_to_lin, _in_null_cube</a><a href="#build">_build_classes</a><a href="#m2s">msg_to_submsg</a><a href="#idf">encode_idffft</a><a href="#etr">encode_trace</a><a href="#dec">decode_dffft_check_nulls</a><a href="#st">self_test</a>
+<b>rtl/bch3d_msg_to_submsg.v</b>
+<a href="#v">constant functions + generate</a>
+<b>model/gen_rtl.py</b>
+<a href="#help">_xor_expr, _s_mask_*</a><a href="#base">generate_baseline_rtl</a><a href="#opt">generate_opt_rtl</a><a href="#slices">slice generators</a><a href="#reg">reg wrapper</a><a href="#tm">generate_tm_rtl</a><a href="#asm">generate_tm_asm_rtl</a><a href="#tb">generate_testbench</a><a href="#tbs">other testbenches</a><a href="#main">main</a>
+<b>model/bch3d_tm.py</b>
+<a href="#etm">encode_tm</a>
+<b>model/bch3d_cse.py</b>
+<a href="#cse">plane grouping</a>
+<b>scripts</b>
+<a href="#scripts">gen_tb, sim, Vivado</a>
 </aside>
 
 <main>
-<section class="file" id="flow">
-  <div class="filehead"><span class="tag">OVERVIEW</span><h2>Tool flow</h2></div>
-  <figure>
-    <div class="scroll">
-    <svg viewBox="0 0 980 260" role="img" aria-label="Flow: bch3d.py model feeds gen_rtl.py, which writes Verilog RTL, testbenches and vector files; xsim checks them, Vivado synthesises and routes">
-      <defs><marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" class="ah"/></marker></defs>
-      <rect class="py" x="10" y="40" width="170" height="80" rx="4"/>
-      <text x="95" y="66" text-anchor="middle" class="m">model/bch3d.py</text>
-      <text x="95" y="86" text-anchor="middle" class="s">classes, trace masks,</text>
-      <text x="95" y="101" text-anchor="middle" class="s">two golden encoders</text>
-      <rect class="py" x="10" y="150" width="170" height="70" rx="4"/>
-      <text x="95" y="176" text-anchor="middle" class="m">bch3d_tm.py · bch3d_cse.py</text>
-      <text x="95" y="196" text-anchor="middle" class="s">reference models, checks</text>
-      <rect class="py" x="230" y="40" width="170" height="180" rx="4"/>
-      <text x="315" y="66" text-anchor="middle" class="m">model/gen_rtl.py</text>
-      <text x="315" y="90" text-anchor="middle" class="s">writes Verilog text</text>
-      <text x="315" y="106" text-anchor="middle" class="s">for every design,</text>
-      <text x="315" y="122" text-anchor="middle" class="s">testbenches and</text>
-      <text x="315" y="138" text-anchor="middle" class="s">.mem vector files</text>
-      <rect class="v" x="450" y="30" width="200" height="60" rx="4"/>
-      <text x="550" y="54" text-anchor="middle" class="m">build/rtl/*.v</text>
-      <text x="550" y="72" text-anchor="middle" class="s">baseline · opt · tm · wrappers</text>
-      <rect class="v" x="450" y="104" width="200" height="50" rx="4"/>
-      <text x="550" y="126" text-anchor="middle" class="m">rtl/bch3d_msg_to_submsg.v</text>
-      <text x="550" y="142" text-anchor="middle" class="s">hand-written, parameterised</text>
-      <rect class="v" x="450" y="168" width="200" height="56" rx="4"/>
-      <text x="550" y="190" text-anchor="middle" class="m">build/tb/*.v · build/vec/*.mem</text>
-      <text x="550" y="208" text-anchor="middle" class="s">testbenches + golden vectors</text>
-      <rect class="box" x="710" y="40" width="250" height="70" rx="4"/>
-      <text x="835" y="64" text-anchor="middle" class="m">scripts/sim.ps1 → xsim</text>
-      <text x="835" y="84" text-anchor="middle" class="s">PASS / FAIL against golden</text>
-      <rect class="box" x="710" y="150" width="250" height="70" rx="4"/>
-      <text x="835" y="174" text-anchor="middle" class="m">vivado_ooc.tcl · vivado_pnr.tcl</text>
-      <text x="835" y="194" text-anchor="middle" class="s">LUTs, timing, power, checkpoints</text>
-      <line class="wire" x1="180" y1="80" x2="228" y2="80" marker-end="url(#ar)"/>
-      <line class="wire" x1="180" y1="185" x2="228" y2="185" marker-end="url(#ar)"/>
-      <line class="wire" x1="400" y1="60" x2="448" y2="60" marker-end="url(#ar)"/>
-      <line class="wire" x1="400" y1="196" x2="448" y2="196" marker-end="url(#ar)"/>
-      <path class="wire" d="M650 60 H680 V75 H708" marker-end="url(#ar)"/>
-      <path class="wire" d="M650 129 H680 V185 H708" marker-end="url(#ar)"/>
-      <path class="wire" d="M650 196 H690 V100 H708" marker-end="url(#ar)"/>
-      <text x="186" y="74" class="s">imports</text>
-      <text x="404" y="54" class="s">writes</text>
-    </svg>
-    </div>
-    <figcaption>Python owns the maths and emits Verilog as text. The only hand-written RTL is the sub-message converter, which computes its own tables at elaboration time.</figcaption>
-  </figure>
+<!-- ================= MATHS ================= -->
+<section>
+<h2>The maths, once</h2>
+
+<div class="fn" id="m-field"><h3>1 · GF(16) as 4-bit integers</h3>
+<p>An element of GF(16) is a polynomial of degree at most 3 over GF(2), stored as a 4-bit integer (bit r is the coefficient of x<sup>r</sup>). Addition is XOR. α = x = <code>0b0010</code> generates the multiplicative group, and multiplying by α is a left shift. When bit 4 appears, it is replaced using x⁴ = x + 1, which means XOR with <code>0b10011</code>.</p>
+<div class="ex"><p><b>Powers of α</b>, as computed by the code: α⁰…α¹⁴ = 1, 2, 4, 8, 3, 6, 12, 11, 5, 10, 7, 14, 15, 13, 9. For example α⁴ = 16 ⊕ 19 = 3 = x + 1, and α¹⁵ = 1 again.</p></div>
+<p>Two facts are used everywhere. First, squaring is linear in characteristic 2, since (a+b)² = a² + b². Second, the subfield GF(2<sup>d</sup>) ⊂ GF(16) is exactly the set of elements with a<sup>2<sup>d</sup></sup> = a. Its nonzero elements are the powers of γ = α<sup>15/(2<sup>d</sup>−1)</sup>: for d = 2, γ = α⁵ = 6, and for d = 1, γ = 1.</p></div>
+
+<div class="fn" id="m-dft"><h3>2 · The codeword is a 3-D inverse DFT</h3>
+<p>A codeword is a 15×15×15 binary cube c(i), with i = (i, i', i''). Its spectrum is a 15×15×15 cube C(J) over GF(16):</p>
+<div class="math"><p class="f">C(J) = Σᵢ c(i) · α^(i·J)          c(i) = Σ_J C(J) · α^(−i·J)</p><p>Here i·J = i·j₁ + i'·j₂ + i''·j₃ (mod 15). The usual 1/N factor of the inverse transform is 1/15, and in characteristic 2 that is 1 because 15 is odd, so no scaling appears anywhere in the code. The kernel factorises as α^(−i·J) = α^(−i j₁)·α^(−i' j₂)·α^(−i'' j₃), so the 3-D transform can be computed as three passes of 1-D transforms, one per axis. That is the "separable IDFFFT".</p></div>
+<p>The encoder works in the spectral domain. It writes the message into the spectrum C, forces the null positions to 0, and inverse-transforms. Every output bit is a GF(2)-linear function of the message.</p></div>
+
+<div class="fn" id="m-conj"><h3>3 · Conjugate classes: why the output is binary</h3>
+<p>If c is binary then c(i)² = c(i), and squaring is linear, so</p>
+<div class="math"><p class="f">C(J)² = Σᵢ c(i)² α^(2 i·J) = C(2J)</p><p>The spectrum is therefore not free: C(2J) is fixed by C(J). The orbit J → 2J → 4J → … (mod 15 per coordinate) is a <b>conjugate class</b>. Since 2⁴ = 16 ≡ 1 (mod 15), every orbit has size d ∈ {1, 2, 4}. Going once around the orbit gives C(J)<sup>2<sup>d</sup></sup> = C(J), so the class value lies in the subfield GF(2<sup>d</sup>) and carries exactly d bits.</p></div>
+<div class="ex"><p>(0,1,2) → (0,2,4) → (0,4,8) → (0,8,1) → back, size 4, 4 message bits.<br>(0,0,5) → (0,0,10), size 2, value in GF(4) = {0, 1, α⁵, α¹⁰}, 2 bits.<br>(0,0,0), size 1, value in GF(2), 1 bit.</p></div>
+<p>Conversely, any spectrum that obeys C(2J) = C(J)² inverse-transforms to a binary cube. The encoder therefore picks one value S per class, puts S, S², S⁴, S⁸ along the orbit, and the result is guaranteed to be binary.</p></div>
+
+<div class="fn" id="m-trace"><h3>4 · The trace formula the hardware implements</h3>
+<p>Group the inverse-DFT sum by classes. For class k with representative J<sub>k</sub>, the orbit members are 2<sup>u</sup>J<sub>k</sub>, with values S<sub>k</sub><sup>2<sup>u</sup></sup>:</p>
+<div class="math"><p class="f">c(i) = Σ_k Σ_{u&lt;d} S_k^(2^u) · α^(−2^u i·J_k) = Σ_k Σ_{u&lt;d} (S_k · α^(e_k(i)))^(2^u) = Σ_k Tr_d( S_k · α^(e_k(i)) )</p>
+<p class="f">e_k(i) = −(i·J_k) mod 15</p>
+<p>Tr<sub>d</sub>(x) = x + x² + … + x<sup>2<sup>d−1</sup></sup> is the trace from GF(2<sup>d</sup>) down to GF(2), so each term is a single bit. One codeword bit is the XOR over the 798 classes of one trace bit per class.</p></div>
+<p>Each trace is a GF(2)-linear function of the 4 bits of S<sub>k</sub>, so it equals the parity of S<sub>k</sub> AND some 4-bit mask, and that mask depends only on (k, e). This is the key to all three hardware designs. A "multiplier" S·α<sup>e</sup> followed by a trace collapses to an XOR of 1–4 wires. The whole encoder is XOR gates.</p>
+<p>The exponent e<sub>k</sub>(i) takes only 15/gcd(15, j₁, j₂, j₃) distinct values. That gives 15 values for most classes, 5 when all coordinates are multiples of 3, 3 when they are multiples of 5, and 1 for J = 0. These sets are the <b>computation classes</b>: 754 classes × 15 + 30 × 5 + 13 × 3 + 1 × 1 = 11,500 distinct products.</p></div>
+
+<div class="fn" id="m-null"><h3>5 · The null cube and where K = 3,163 comes from</h3>
+<p>The code is defined by C(J) = 0 for every J in the cube 1 ≤ j₁, j₂, j₃ ≤ 2T = 4. In each dimension this makes α¹…α⁴ roots, the BCH design for T = 2. A class that touches the cube must be 0 as a whole, because one zero member forces the rest by squaring. Those classes carry no message.</p>
+<div class="ex"><p>N=15, T=2: there are 851 classes. The 53 null classes cover 212 spectral positions, for example (1,1,1)→(2,2,2)→(4,4,4)→(8,8,8). The 798 remaining classes carry 784×4 + 13×2 + 1×1 = 3,163 bits = K, and 3,375 − 212 = 3,163.</p></div></div>
+
+<div class="fn" id="m-lin"><h3>6 · Linearity, which the verification relies on</h3>
+<p>The map message → codeword is GF(2)-linear. The message is packed into the S<sub>k</sub> by XORs, each trace is linear, and the outputs are XORs. So codeword(a ⊕ b) = codeword(a) ⊕ codeword(b), and the encoder is fully described by its K × 3,375 generator matrix, whose row b is the codeword of the unit message 1≪b. The RTL is also pure XOR, with no constants and no inverters, so it is linear too. Two linear maps that agree on all K unit vectors agree on all 2<sup>3163</sup> messages. This is why the testbench checks all 3,163 unit vectors.</p></div>
 </section>
 
-<section class="file" id="notation">
-  <div class="filehead"><span class="tag">OVERVIEW</span><h2>Notation used below</h2></div>
-  <div class="fn">
-    <dl>
-      <dt>Point</dt><dd><code>p = i·225 + i′·15 + i″</code>, one of 3,375 codeword bits; <code>lin_to_pt</code> converts.</dd>
-      <dt>Class k</dt><dd>A conjugate class: the orbit of spectral position <code>J=(j1,j2,j3)</code> under doubling mod 15. Size <code>d ∈ {1,2,4}</code>. 798 classes carry the 3,163 message bits; 53 are spectral nulls.</dd>
-      <dt>S_k</dt><dd>The class's GF(16) sub-message (4 bits), built from its <code>d</code> message bits.</dd>
-      <dt>Exponent</dt><dd><code>e = −(i·j1 + i′·j2 + i″·j3) mod 15</code>. Class k adds <code>Tr_d(S_k·α^e)</code> to point p.</dd>
-      <dt>Trace mask</dt><dd>A 4-bit mask so that <code>Tr_d(S_k·α^e) = parity(S_k AND mask)</code>. This is what turns a GF multiply into an XOR of 1 to 4 wires.</dd>
-    </dl>
-  </div>
+<!-- ================= bch3d.py ================= -->
+<section>
+<h2>model/bch3d.py: the golden model</h2>
+
+<div class="fn" id="init"><h3>BCH3DModel.__init__(N=15, T=2, prim_poly=0b10011)</h3>
+<p>It computes M = bit_length(N+1) − 1 = 4 and asserts that N = 2<sup>M</sup> − 1. It then builds two tables in one loop: <code>x</code> starts at 1, and each step stores <code>exp[e] = x</code> and <code>log[x] = e</code>, shifts x left, and XORs with <code>prim_poly</code> if bit M is set. This is exactly the "multiply by α" step from §1.</p>
+<p><code>exp</code> has length 2N + 2, and the second half repeats the first (<code>exp[e+N] = x</code>). That lets <code>mul</code> index <code>exp[log a + log b]</code> without a mod, since the sum is at most 28. It finishes with <code>_build_classes()</code>, K = sum of class sizes = 3,163, and N_CLASS = 798.</p></div>
+
+<div class="fn" id="mul"><h3>mul(a, b) and sq(a)</h3>
+<p><code>mul</code> returns 0 if either input is 0, and otherwise <code>exp[log[a]+log[b]]</code>, using α<sup>x</sup>·α<sup>y</sup> = α<sup>x+y</sup>. <code>sq</code> is the same with b = a, i.e. <code>exp[2·log a]</code>.</p>
+<div class="ex"><p>mul(6, 12): log 6 = 5 and log 12 = 6, so the result is exp[11] = 14. Checking by polynomials: (x²+x)(x³+x²) = x⁵+x³ = x³+x²+x = 14.</p></div></div>
+
+<div class="fn" id="trace">
+<h3>trace_d(a, d)</h3>
+<p>It accumulates a ⊕ a² ⊕ a⁴ ⊕ … over d terms, squaring with <code>sq</code> at each step, and then asserts that the result is 0 or 1. That assertion only holds for a ∈ GF(2<sup>d</sup>): the partial trace of an element outside the subfield is not binary. This function is used for checking. The production masks are derived differently (see <code>_build_classes</code>).</p></div>
+
+<div class="fn" id="pt"><h3>lin_to_pt, pt_to_lin, _in_null_cube</h3>
+<p>The cube is flattened as p = i·225 + i'·15 + i''. <code>lin_to_pt</code> inverts this with <code>(p//225, (p//15)%15, p%15)</code>. Everything uses this layout: codeword bit p of the RTL, of the Python integers and of the testbench vectors. <code>_in_null_cube</code> is true if all three coordinates are in [1, 2T].</p></div>
+
+<div class="fn" id="build"><h3>_build_classes(): the heart of the model</h3>
+<p>For every linear index p from 0 to 3,374, in increasing order:</p>
+<ol>
+<li><b>Orbit.</b> It walks <code>nxt(pt) = (2a, 2b, 2c) mod N</code> until it returns to pt. This is the Frobenius orbit from §3.</li>
+<li><b>Representative.</b> If p is not the smallest linear index in its orbit, it skips the point, since that class will be (or was) built from its smallest member. Classes are therefore created in ascending order of representative. That order is the message-bit order, and the Verilog uses the same rule.</li>
+<li><b>Null check.</b> If any orbit member is in the null cube, the orbit goes to <code>null_classes</code> and gets no message bits.</li>
+<li><b>sub_masks.</b> The class takes d message bits b₀…b_{d−1} starting at <code>off</code> and packs them into a subfield element S = Σ bᵢ·γ<sup>i</sup>, with γ = α<sup>step</sup> and step = N/(2<sup>d</sup>−1). Bit r of S is then the parity of the bᵢ for which bit r of γ<sup>i</sup> is 1, and <code>sub_masks[r]</code> records which i those are.</li>
+<li><b>distinct_exps.</b> It loops over all 3,375 points, collects e = −(i·J) mod N into a set and sorts it. The set has the 15/5/3/1 values from §4.</li>
+<li><b>trace_masks[e].</b> For each basis bit r, it computes Tr<sub>d</sub>(α<sup>r</sup>·α<sup>e</sup>) with the same square-and-add loop and keeps <b>bit 0</b>. The mask bit r is that bit, so Tr<sub>d</sub>(S·α<sup>e</sup>) = parity(S &amp; mask).</li>
+</ol>
+<div class="math"><p><b>Why "keep bit 0" is correct.</b> For d = 4 every trace is already 0 or 1. For d &lt; 4, α<sup>r</sup> is generally not in GF(2<sup>d</sup>), so Tr<sub>d</sub>(α<sup>r</sup>·α<sup>e</sup>) can be any field element. However, x ↦ bit0(Tr<sub>d</sub>(x)) is GF(2)-linear on all of GF(16). For x = S·α<sup>e</sup> with S ∈ GF(2<sup>d</sup>), it gives Tr<sub>d</sub>(x) exactly, because α<sup>e</sup> is also in GF(2<sup>d</sup>): J has orbit size d, so (2<sup>d</sup>−1)J ≡ 0 and e is a multiple of 15/(2<sup>d</sup>−1), and the trace is binary there. A linear map that is right on the subspace that S actually occupies is all the hardware needs.</p></div>
+<div class="ex"><p><b>Class 7</b>, rep (0,1,2), size 4, message bits 23–26: sub_masks = [1,2,4,8], so S is the 4 message bits as they are. Trace masks: e=0 → 8, so Tr(S) = S₃, since for x⁴+x+1 the traces of 1, α, α² are 0 and Tr(α³) = 1. e=14 → 1, so Tr(S·α¹⁴) = S₀. e=11 → 15, so the trace is the XOR of all four bits.</p>
+<p><b>Class 3</b>, rep (0,0,5), size 2: γ = α⁵ = 0110, so S = b₀·0001 ⊕ b₁·0110, giving sub_masks = [1,2,2,0] (bits 1 and 2 of S both copy b₁). distinct_exps = [0, 5, 10] and the trace masks take values {4, 11, 15}.</p>
+<p><b>Class 0</b>, rep (0,0,0), size 1: S = b₀, and its single trace mask is 1. This is the "DC" bit, which contributes b₀ to every codeword bit.</p></div></div>
+
+<div class="fn" id="m2s"><h3>msg_to_submsg(msg)</h3>
+<p>For each class it extracts <code>bits = (msg ≫ bit_offset) &amp; (2<sup>d</sup>−1)</code>, and bit r of S<sub>k</sub> is the parity of <code>bits &amp; sub_masks[r]</code>. It returns 798 four-bit values. This is §4's packing, and it is bit-exact with the Verilog module of the same name.</p></div>
+
+<div class="fn" id="idf"><h3>encode_idffft(msg): reference path 1, no trace masks</h3>
+<ol>
+<li>It builds a 15×15×15 GF(16) array <code>spec</code>, all zeros (so null classes stay 0).</li>
+<li>For each class it walks the orbit, writing <code>v</code> and then setting <code>v = sq(v)</code>, so the orbit gets S, S², S⁴, S⁸. This enforces C(2J) = C(J)².</li>
+<li>Three passes of <code>idft1d</code>: along i'' for every (a, b), then along i', then along i. <code>idft1d</code> is the direct O(N²) sum out[i] = Σⱼ vec[j]·α<sup>(−ij) mod N</sup>, skipping zeros.</li>
+<li>It asserts that every output is 0 or 1 (the binary property from §3) and packs bit p.</li>
+</ol>
+<p>This path never touches <code>trace_masks</code> or <code>distinct_exps</code>. That independence is what makes it a meaningful check of everything derived from them.</p></div>
+
+<div class="fn" id="etr"><h3>encode_trace(msg): reference path 2, the hardware formula</h3>
+<p>For each point p and each class, it computes e = −(i·J) mod N and XORs the parity of <code>S &amp; trace_masks[e]</code> into the bit. This is §4's formula exactly, the same computation the RTL performs. Its cost is 3,375 × 798 parities.</p></div>
+
+<div class="fn" id="dec"><h3>decode_dffft_check_nulls(cw)</h3>
+<p>It loads the binary cube and runs three forward 1-D DFTs, with α<sup>+ij</sup>, along the three axes. It then checks that every position in the null cube is 0. This tests the code definition itself, not just whether two encoders agree.</p></div>
+
+<div class="fn" id="st"><h3>self_test()</h3>
+<p>For four (N, T) configurations and six messages (all zeros, all ones, the lowest bit, the highest bit and two random ones), it asserts <code>encode_idffft == encode_trace</code> and that the null check passes. For (15, 2) it also pins K = 3,163, 798 classes, 53 null classes and the computation-class histogram {15: 754, 5: 30, 3: 13, 1: 1}.</p></div>
 </section>
 
-<section class="file" id="f_bch3d">
-  <div class="filehead"><span class="tag">MODEL</span><h2>model/bch3d.py</h2><span class="path">Golden model: field arithmetic, conjugate classes, and two independent encoders.</span></div>
-
-  <div class="fn" id="ClassInfo"><h3>@dataclass ClassInfo</h3>
-    <div class="sig">idx, rep, rep_lin, orbit, size, bit_offset, sub_masks, trace_masks, distinct_exps</div>
-    <p>One record per message-carrying class. Everything the RTL generators need lives here: where the class's bits sit in <code>msg</code> (<code>bit_offset</code>, <code>size</code>), how to build <code>S_k</code> (<code>sub_masks</code>), and which wires form each product (<code>trace_masks[e]</code>). <code>distinct_exps</code> is the computation class: 15, 5, 3 or 1 exponents over the whole cube.</p>
-  </div>
-
-  <div class="fn" id="init"><h3>BCH3DModel.__init__(N=15, T=2, prim_poly=0b10011)</h3>
-    <p>Derives <code>M</code> from <code>N = 2^M − 1</code> and builds the GF(2^M) <code>exp</code>/<code>log</code> tables by repeated multiply-by-α with reduction by the primitive polynomial. <code>exp</code> is doubled in length so <code>exp[a+b]</code> works without a mod. Then calls <code>_build_classes</code> and sets <code>K</code> (message bits) and <code>N_CLASS</code>.</p>
-  </div>
-
-  <div class="fn" id="mul"><h3>mul(a, b) · sq(a)</h3>
-    <p>GF(16) multiply and square through the log tables: <code>exp[log a + log b]</code>, with 0 handled separately. Used by every encoder, by the trace masks, and by the TM rotation constant.</p>
-  </div>
-
-  <div class="fn" id="trace_d"><h3>trace_d(a, d)</h3>
-    <p>The subfield trace <code>a + a² + a⁴ + … (d terms)</code>. Asserts the result is 0 or 1, which is the property that makes the IDFFFT output binary.</p>
-  </div>
-
-  <div class="fn" id="lin"><h3>lin_to_pt(p) · pt_to_lin(pt)</h3>
-    <p>Convert between the flat bit index and <code>(i, i′, i″)</code>. This layout is the codeword bit order everywhere, including the RTL and the <code>.mem</code> files.</p>
-  </div>
-
-  <div class="fn" id="nullcube"><h3>_in_null_cube(pt)</h3>
-    <p>True if every coordinate is in <code>1..2T</code>. Any class that touches this 4×4×4 cube is forced to zero (spectral null) and carries no message.</p>
-  </div>
-
-  <div class="fn key" id="build"><h3>_build_classes()</h3>
-    <dl>
-      <dt>Step 1</dt><dd>For every point, walk the doubling orbit. Keep it only if the point is the smallest linear index in its orbit (the insertion point), so each class is found once, in ascending order. This order must match the Verilog converter.</dd>
-      <dt>Step 2</dt><dd>Drop orbits that hit the null cube (53 for N=15, T=2).</dd>
-      <dt>Step 3</dt><dd><code>sub_masks</code>: a size-d class stores d bits in GF(2^d) with basis <code>γ^i</code>, <code>γ = α^(15/(2^d−1))</code>; mask r lists which message bits feed bit r of <code>S_k</code>.</dd>
-      <dt>Step 4</dt><dd><code>distinct_exps</code>: sweep all 3,375 points and collect the set of exponents. Result for N=15: 754 classes with 15, 30 with 5, 13 with 3, 1 with 1.</dd>
-      <dt>Step 5</dt><dd><code>trace_masks[e]</code>: for each basis bit r of <code>S_k</code>, compute bit 0 of <code>Tr_d(α^r·α^e)</code>. Because the trace is linear, the product for any <code>S_k</code> is the parity of the selected bits.</dd>
-    </dl>
-  </div>
-
-  <div class="fn" id="m2s"><h3>msg_to_submsg(msg_int)</h3>
-    <p>Python twin of <code>bch3d_msg_to_submsg.v</code>: slice each class's bits out of the message and apply <code>sub_masks</code>. Returns 798 values in GF(16).</p>
-  </div>
-
-  <div class="fn key" id="idffft"><h3>encode_idffft(msg_int)  — golden path 1</h3>
-    <p>Fills the full 15×15×15 spectrum: each class value goes to its insertion point and is squared as it walks the orbit (Frobenius conjugacy). Then runs a separable 3-D inverse transform: 1-D IDFT along each axis in turn. Asserts every output is 0 or 1. This path shares no code with the hardware formulas, which is why it is the reference.</p>
-  </div>
-
-  <div class="fn" id="trace"><h3>encode_trace(msg_int)  — golden path 2</h3>
-    <p>Evaluates the hardware formula directly: for each point, XOR over all classes of <code>parity(S_k AND trace_masks[e])</code>. This is exactly what the baseline RTL does; agreement with path 1 proves the masks are right.</p>
-  </div>
-
-  <div class="fn" id="dffft"><h3>decode_dffft_check_nulls(cw_int)</h3>
-    <p>Forward 3-D transform of a codeword, then checks the null cube is all zero. Confirms an output really is a codeword of the 3-D BCH code.</p>
-  </div>
-
-  <div class="fn" id="st1"><h3>self_test()</h3>
-    <p>For four (N, T) settings, compares the two encoders and the null check on all-0, all-1, single-bit and random messages. For N=15, T=2 it also pins <code>K=3163</code>, 798 classes, 53 null classes and the 754/30/13/1 computation-class histogram.</p>
-  </div>
+<!-- ================= Verilog ================= -->
+<section>
+<h2>rtl/bch3d_msg_to_submsg.v</h2>
+<div class="fn" id="v"><h3>Constant functions, then a generate loop</h3>
+<p>This module recomputes the class structure inside Verilog at elaboration time, so the same file works for any (N, T, PRIM_POLY). The functions mirror the Python one for one:</p>
+<ul>
+<li><code>log2_np1</code> gives M; <code>alpha_pow(e)</code> repeats the shift-and-reduce step e times.</li>
+<li><code>next_pt</code> doubles each coordinate of a linear index mod N. <code>orbit_size</code>, <code>is_rep</code> (no orbit member is smaller) and <code>orbit_is_null</code> walk the orbit.</li>
+<li><code>count_classes</code> and <code>count_bits</code> set the localparams N_CLASS = 798 and K_BITS = 3,163, which size the ports.</li>
+<li><code>build_table</code> packs, for class k, the bit offset into bits [32k, 32k+16) and the size into [32k+16, 32k+32) of one large constant <code>TABLE</code>. It is sized 32·N³ because Verilog-2001 can't size a constant by a value computed in the same pass, so it uses the upper bound.</li>
+<li><code>sub_mask(r, d)</code> is the same rule as Python's <code>sub_masks</code>: bit i is set if bit r of α<sup>i·N/(2<sup>d</sup>−1)</sup> is 1.</li>
+</ul>
+<p>The generate block then emits, for each class k and each bit r: <code>bits = msg[OFF +: SZ]</code> (zero-extended to 32) and <code>sub_msg[4k+r] = ^(bits &amp; MASK)</code>. For size-4 classes each mask has one bit, so this is plain wiring. For size-2 classes, bits 1 and 2 are the same wire. Only the elaboration is expensive; the hardware has no LUTs.</p></div>
 </section>
 
-<section class="file" id="f_tm">
-  <div class="filehead"><span class="tag">MODEL</span><h2>model/bch3d_tm.py</h2><span class="path">Reference model of the time-multiplexed encoder.</span></div>
-  <div class="fn key" id="enc_tm"><h3>encode_tm(m, msg) → (codeword, slices)</h3>
-    <ol>
-      <li>Start from the sub-messages <code>S</code> and precompute one constant per class: <code>step = α^(−j3)</code>.</li>
-      <li>For cycle c = 0..14 (this is <code>i″</code>), each of the 225 trees <code>(i, i′)</code> uses the fixed exponent <code>e0 = −(i·j1 + i′·j2)</code>, the same in every cycle.</li>
-      <li>After the cycle, multiply every <code>S_k</code> by its <code>step</code>. Then <code>S_k(c) = S_k·α^(−c·j3)</code>, so <code>Tr(S_k(c)·α^e0)</code> is the full-cube term at <code>(i, i′, c)</code>.</li>
-    </ol>
-    <p>This is the idea behind design 3: a per-class register update replaces a 15:1 mux in front of every tree input.</p>
-  </div>
-  <div class="fn" id="st2"><h3>self_test()</h3>
-    <p>Checks <code>encode_tm</code> against <code>encode_idffft</code>: all unit vectors for N=7, and random plus all-0/all-1 for N=15.</p>
-  </div>
+<!-- ================= gen_rtl.py ================= -->
+<section>
+<h2>model/gen_rtl.py: the hardware generators</h2>
+<p>Each generator writes Verilog as text. The Python does all the maths (exponents, masks, wiring), and the emitted RTL contains only wires and XORs.</p>
+
+<div class="fn" id="help"><h3>_xor_expr, _s_mask_expr, _s_mask_off</h3>
+<p><code>_s_mask_off("S", off, mask, M)</code> turns a 4-bit mask into the Verilog text <code>S[off+r] ^ …</code> for the set bits, or <code>1'b0</code> if the mask is empty. This is how "parity(S &amp; mask)" becomes hardware. <code>_s_mask_expr</code> does the same without an offset. <code>_xor_expr</code> joins terms 16 per line for readability.</p></div>
+
+<div class="fn" id="base"><h3>generate_baseline_rtl: design 1</h3>
+<p>For every point p, it builds the list <code>bits_p</code>: for every class k, the <code>sub_msg</code> bits picked by <code>trace_masks[e_k(p)]</code>. The output bit is the XOR of that whole list, a direct expansion of c(p) = ⊕<sub>k</sub> parity(S<sub>k</sub> &amp; mask). Each point is its own module instance (<code>bch3d_base_pt_*_w&lt;width&gt;</code>, one module per distinct width). With <code>flatten none</code> that hierarchy stops the tool from sharing the per-class parities between points: every point recomputes them.</p>
+<div class="ex"><p>Point (0,0,0): every e is 0, so each mask has one bit and the width is 798. Point (1,2,3): the width is 1,716, because a typical mask has about 2 bits. Over 3,375 points that is about 5.8 M XOR inputs, which explains the roughly 1.16 M LUTs without flattening.</p></div></div>
+
+<div class="fn" id="opt"><h3>generate_opt_rtl: design 2</h3>
+<ol>
+<li><b>wire_map:</b> one index for every (class, e) in <code>distinct_exps</code>, 11,500 in total.</li>
+<li><b>Multiplier units:</b> one module per unique (size, exponent list) signature. Output <code>p[j]</code> = <code>_s_mask_expr(s, trace_masks[e_j])</code>, i.e. Tr(S·α<sup>e</sup>) as a 1–4 input XOR. Strictly, the "multiplier" in the name is multiply-then-trace, reduced to a parity.</li>
+<li><b>Bank:</b> instantiates one unit per class on <code>sub_msg[4k +: 4]</code>, writing into <code>mul_out[lo +: n]</code>.</li>
+<li><b>Trees:</b> for every point, a 798-input XOR of <code>mul_out[wire_map[(k, e_k(p))]]</code>, exactly one wire per class.</li>
+</ol>
+<p>Moving from design 1 to design 2 changes where the parity is formed. Design 2 computes each of the 11,500 products once and lets 3,375 trees share them, so each point sees 798 inputs instead of about 1,716. The cost is fan-out: one bank wire is read by up to 3,375/15 = 225 trees spread over the whole chip. That wiring is what failed to route.</p></div>
+
+<div class="fn" id="slices"><h3>slice_points, generate_baseline_slice_reg_rtl, generate_opt_slice_reg_rtl</h3>
+<p><code>slice_points(m, 0)</code> returns the 225 linear indices with i'' = 0, which are p = 0, 15, 30, …, 3,360.</p>
+<p>The baseline slice repeats design 1's per-point construction for those 225 points only. The opt slice builds a <code>used</code> dictionary keyed by (class, mask) rather than (class, e). Identical masks then share one wire, and only the products those 225 trees read are emitted, 10,608 of them. Each slice registers <code>msg</code> on input and the 225 outputs, so timing runs from register to register.</p>
+<p><code>generate_core_slice_reg_rtl</code> is the earlier approach: it wraps the full core and selects the 225 bits. It is correct in simulation, but synthesis has to build the whole core before removing the unused part, and that ran out of memory.</p></div>
+
+<div class="fn" id="reg"><h3>generate_reg_wrapper_rtl</h3>
+<p>It writes <code>&lt;core&gt;_reg</code>: <code>msg_q &lt;= msg</code>, the combinational core on <code>msg_q</code>, then <code>codeword &lt;= cw_c</code>. The latency is 2 cycles and it adds 6,538 FFs. Its only purpose is to give the timing tools a register-to-register path through the whole encoder.</p></div>
+
+<div class="fn" id="tm"><h3>generate_tm_rtl: design 3 core</h3>
+<div class="math"><p><b>The derivation.</b> Split the exponent at point (i, i', c):</p>
+<p class="f">e_k(i,i',c) = −(i j₁ + i' j₂) − c·j₃ = e0_k(i,i') − c·j₃</p>
+<p class="f">Tr(S_k · α^(e0 − c j₃)) = Tr( (S_k · α^(−c j₃)) · α^(e0) )</p>
+<p>So if a register holds S<sub>k</sub>(c) = S<sub>k</sub>·α<sup>−c·j₃</sup>, the fixed wiring for (i, i') with exponent e0 produces plane c. Each cycle the register is updated by S ← S·g with g = α<sup>−j₃</sup>, a constant per class. The product stays in GF(2<sup>d</sup>), because g is a power of α<sup>15/(2<sup>d</sup>−1)</sup> for the same reason as in §4.</p></div>
+<p>What the code emits:</p>
+<ul>
+<li><b>Bank:</b> wires only for the exponents e0 that occur at i'' = 0. That gives 10,608 rather than 11,500: a class with j₁ = j₂ = 0, such as (0,0,1), needs only e0 = 0.</li>
+<li><b>S_rot:</b> a constant multiplication is a 4×4 GF(2) matrix whose column r is α<sup>r</sup>·g. The code computes <code>cols[r] = mul(1&lt;&lt;r, g)</code>, and output bit q is the XOR of the S bits r whose column has bit q set.</li>
+<li><b>225 trees:</b> <code>u_tree_i_i'</code> XORs <code>mul_out[wire_map[(k, e0_k(i,i'))]]</code> over the 798 classes.</li>
+<li><b>Control:</b> <code>busy</code> and a 4-bit counter <code>cyc</code> from 0 to 14. <code>accept = start &amp;&amp; (!busy || last)</code>, so a new message can be taken in the last cycle and codewords run back to back. On accept, <code>S &lt;= sub_msg</code>; while busy, <code>S &lt;= S_rot</code>. Every cycle, <code>slice &lt;= slice_c</code>, with <code>slice_valid</code> and <code>slice_idx</code> delayed by one cycle to match. <code>done</code> marks slice 14.</li>
+</ul>
+<div class="ex"><p>Class 7, rep (0,1,2): j₃ = 2, so g = α<sup>−2</sup> = α¹³ = 13 (1101). cols = [13, 9, 1, 2]. Reading bit q across the columns gives S_rot[0] = S₀⊕S₁⊕S₂, S_rot[1] = S₃, S_rot[2] = S₀, S_rot[3] = S₀⊕S₁. Classes with j₃ = 0 have g = 1, so S_rot = S and the rotation is just wiring.</p></div></div>
+
+<div class="fn" id="asm"><h3>generate_tm_asm_rtl: the assembly wrapper</h3>
+<p>For each group g = i·15 + i' (225 groups), it keeps a 15-bit shift register in <code>cw_sr[g*15 +: 15]</code>. On every <code>slice_valid</code>, the group shifts down and <code>slice[g]</code> enters at the top (bit 14). After 15 slices, the slice from cycle c sits at bit c, so <code>cw_sr[g*15 + c]</code> = bit (i, i', c). Its index is i·225 + i'·15 + c, which is exactly the flat codeword layout, so no reordering is needed. One cycle after <code>done</code> (<code>done_d</code>), the 3,375 bits are copied to a hold register <code>codeword</code> and <code>cw_valid</code> pulses. This adds only flip-flops, no LUTs.</p></div>
+
+<div class="fn" id="tb"><h3>generate_testbench: golden vectors via linearity</h3>
+<ol>
+<li>For each class it builds <code>exp_to_pts_mask[e]</code>: a 3,375-bit integer of the points whose exponent is e.</li>
+<li>For each of the class's d bits it forms the unit sub-message <code>s_val</code>, which is column i of sub_masks, i.e. γ<sup>i</sup>. The unit codeword is the XOR of the point masks of every e with parity(s_val &amp; trace_masks[e]) = 1. This gives all K generator rows in O(K·15) big-integer XORs instead of O(K·3,375·798).</li>
+<li><code>fast_encode(msg)</code> XORs the rows of the set bits (§6).</li>
+<li><b>Independent check:</b> on 15 messages it asserts <code>fast_encode == encode_idffft</code>, which does not use the masks, and runs the null-cube check.</li>
+<li>It writes <code>msg_*.mem</code> and <code>cw_*.mem</code> with all zeros, all ones, all 3,163 unit vectors and the random messages: 3,170 vectors. The Verilog testbench drives each through both <code>bch3d_enc_baseline</code> and <code>bch3d_enc_opt</code> and compares them with the golden codeword and with each other.</li>
+</ol></div>
+
+<div class="fn" id="tbs"><h3>The other testbench generators</h3>
+<ul>
+<li><b>generate_reg_wrapper_testbench</b> and <b>generate_baseline_slice_testbench</b> are pipelined: one message goes in on each negedge, and the output is compared 2 cycles later with the golden codeword, or with its 225 slice bits selected as <code>{cw[p_224], …, cw[p_0]}</code>. The second one takes <code>mod_name</code>, so the design 2 slice reuses it.</li>
+<li><b>generate_tm_testbench</b> rebuilds the codeword from the slices with <code>asm[a*225 + b*15 + slice_idx] = slice[a*15+b]</code>, compares it on <code>done</code>, and also tests a reset in the middle of a codeword.</li>
+<li><b>generate_tm_asm_testbench</b> checks <code>codeword</code> on each <code>cw_valid</code>.</li>
+</ul></div>
+
+<div class="fn" id="main"><h3>main()</h3>
+<p>It parses <code>--n --t --rtl-dir --tb-dir --vec-dir --num-random</code>, builds the model, and writes everything in this order: baseline, opt, vectors and the main testbench, the TM core, the TM assembly wrapper, the register wrappers for both full designs, and the two slices with their testbenches. The full N = 15 RTL is about 83 MB for the baseline and 40 MB for opt.</p></div>
 </section>
 
-<section class="file" id="f_cse">
-  <div class="filehead"><span class="tag">MODEL</span><h2>model/bch3d_cse.py</h2><span class="path">Study of XOR sharing between output points (not used to generate RTL).</span></div>
-  <div class="fn" id="normals"><h3>normals_n15()</h3>
-    <p>Lists order-15 normal vectors n in Z₁₅³ by pairing projective points of F₃³ and F₅³ through the Chinese remainder theorem.</p>
-  </div>
-  <div class="fn" id="groups"><h3>build_groups(m)</h3>
-    <p>Greedy cover: repeatedly picks the normal whose plane <code>J·n = 0</code> holds the most uncovered classes. For classes in one plane, the partial XOR is the same along every line in direction n, so it only needs 225 values instead of 3,375.</p>
-  </div>
-  <div class="fn" id="key_of"><h3>key_of(p, n)</h3>
-    <p>Canonical representative of point p modulo the line ⟨n⟩: the smallest of its 15 shifts. Points with the same key share a partial sum.</p>
-  </div>
-  <div class="fn" id="enc_cse"><h3>encode_cse(m, msg, groups)</h3>
-    <p>Encodes with the grouped sums: 225 partial values per group, then one XOR per group at each output. Checked against the golden model.</p>
-  </div>
-  <div class="fn" id="cost"><h3>cost(m, groups) · main()</h3>
-    <p><code>cost</code> counts XOR2 gates and a LUT6 estimate (5 inputs merged per LUT) for both levels. <code>main</code> prints the comparison against the per-point trees and runs the check on 8 messages.</p>
-  </div>
+<!-- ================= TM / CSE models ================= -->
+<section>
+<h2>model/bch3d_tm.py and model/bch3d_cse.py</h2>
+<div class="fn" id="etm"><h3>encode_tm(m, msg): the TM schedule in software</h3>
+<p>It takes S = <code>msg_to_submsg</code> and <code>step[k] = α<sup>−j₃</sup></code>. For each cycle 0–14, every (i, i') tree XORs parity(S<sub>k</sub> &amp; trace_masks[e0]) over the classes, and the result is placed at bit (i, i', cycle). Then <code>S = [mul(s, g)]</code>. <code>self_test</code> compares the result with <code>encode_idffft</code>: all unit vectors for N = 7, and 5 messages for N = 15. This is the proof that the rotation trick used by generate_tm_rtl is exact, independent of the RTL.</p></div>
+
+<div class="fn" id="cse"><h3>bch3d_cse.py: an XOR-sharing idea that was not built</h3>
+<div class="math"><p>Take a vector n of order 15 in Z₁₅³. Every class with J·n ≡ 0 (mod 15) has e<sub>k</sub>(p + m·n) = e<sub>k</sub>(p) − m(J·n) = e<sub>k</sub>(p). So the partial XOR over such a group G is constant along lines in direction n. It takes only 3,375/15 = 225 distinct values, and each can be computed once and shared by 15 output points.</p></div>
+<ul>
+<li><code>normals_n15</code> combines one representative of each projective point of F₃³ (13) and of F₅³ (31) with the CRT, giving 403 directions of order 15.</li>
+<li><code>build_groups</code> greedily picks the normal that covers the most uncovered classes until all 798 are covered.</li>
+<li><code>key_of(p, n)</code> is the canonical point of p's line: the smallest of the 15 translates.</li>
+<li><code>encode_cse</code> computes one partial value per (group, line) and XORs one value per group at each point. It is checked against the IDFFFT.</li>
+<li><code>cost</code> counts level-1 XORs (225·(|G|−1) per group) and level-2 XORs (3,375·(groups−1)), with LUT6 estimates using 5 new inputs per LUT.</li>
+</ul></div>
 </section>
 
-<section class="file" id="f_gen">
-  <div class="filehead"><span class="tag">GENERATOR</span><h2>model/gen_rtl.py</h2><span class="path">Writes every encoder, wrapper and testbench as Verilog text from the model.</span></div>
-
-  <div class="fn" id="helpers"><h3>_xor_expr(terms) · _s_mask_expr(s, mask, M) · _s_mask_off(s, off, mask, M)</h3>
-    <p>Small string builders. <code>_xor_expr</code> joins terms with <code>^</code> and wraps long lines. <code>_s_mask_expr</code> turns a 4-bit trace mask into <code>s[0] ^ s[2]</code>. <code>_s_mask_off</code> does the same with a bit offset, e.g. <code>S[20] ^ S[23]</code> for class 5, because Verilog cannot index a part-select.</p>
-  </div>
-
-  <div class="fn key" id="g_base"><h3>generate_baseline_rtl(m, out_path)  → design 1</h3>
-    <ol>
-      <li>For each of the 3,375 points, list the sub-message bits selected by <code>trace_masks[e]</code> for every class: this inlines all 798 multipliers for that point.</li>
-      <li>Emit one module <code>bch3d_base_pt_*_w&lt;width&gt;</code> per distinct input width, each just <code>^in_bits</code>.</li>
-      <li>Top <code>bch3d_enc_baseline</code>: the converter, then one point instance per codeword bit. Separate instances stop synthesis from sharing multipliers between points, which is what "no optimisation" means here.</li>
-    </ol>
-  </div>
-
-  <div class="fn" id="g_slice"><h3>slice_points(m, plane) · base_slice_mod_name(m) · generate_baseline_slice_reg_rtl(m, out_path, plane=0)</h3>
-    <p><code>slice_points</code> returns the 225 linear indices with <code>i″ = plane</code>. The slice generator writes the same per-point units as the baseline, only for those points, with <code>msg</code> registered on input and the 225 outputs registered on output. It exists so a 1/15 piece of design 1 can be placed and routed to estimate the full design.</p>
-  </div>
-
-  <div class="fn" id="g_slice_tb"><h3>generate_baseline_slice_testbench(m, tb_path, n_vecs, msg_mem, cw_mem, plane=0)</h3>
-    <p>Pipelined check: a new vector every cycle, and two cycles later the slice is compared with the matching 225 bits picked out of the golden codeword (<code>{cw[p_224], …, cw[p_0]}</code>).</p>
-  </div>
-
-  <div class="fn" id="g_reg"><h3>generate_reg_wrapper_rtl(m, core, out_path) · generate_reg_wrapper_testbench(…)</h3>
-    <p>Writes <code>&lt;core&gt;_reg</code>: an input register on <code>msg</code>, the combinational core, an output register on <code>codeword</code>. Designs 1 and 2 have no flip-flops, so without this Vivado has no register-to-register path to time. The testbench feeds one vector per cycle and checks the codeword two cycles later.</p>
-  </div>
-
-  <div class="fn key" id="g_opt"><h3>generate_opt_rtl(m, out_path)  → design 2</h3>
-    <ol>
-      <li>Give every <code>(class, exponent)</code> pair in <code>distinct_exps</code> a wire in <code>mul_out</code>: 11,500 wires in total.</li>
-      <li>Emit one multiplier-unit module per distinct (size, exponents) signature; each output is a trace-mask XOR of the 4 input bits.</li>
-      <li><code>bch3d_mul_bank_*</code> instantiates one unit per class: the shared bank, 4,597 LUTs.</li>
-      <li>Top <code>bch3d_enc_opt</code>: for each point, pick the one bank wire per class that matches its exponent, and XOR the 798 picks in <code>bch3d_xor_tree_*</code>.</li>
-    </ol>
-    <p>Each product is computed once and fanned out ("compute once, route many"). The 3,375 trees of 798 inputs remain, about 540,000 LUTs.</p>
-  </div>
-
-  <div class="fn" id="tm_name"><h3>tm_mod_name(m) · tm_asm_mod_name(m)</h3>
-    <p>Module names: <code>bch3d_enc_tm</code> / <code>bch3d_enc_tm_asm</code> for N=15, T=2, with an <code>_nX_tY</code> suffix otherwise.</p>
-  </div>
-
-  <div class="fn key" id="g_tm"><h3>generate_tm_rtl(m, out_path) → design 3 core, returns bank wire count</h3>
-    <ol>
-      <li><b>Pruned bank:</b> only exponents reachable at <code>i″=0</code> get a wire (10,608 instead of 11,500), since the rotation of S supplies the <code>i″</code> part.</li>
-      <li><b>Rotation:</b> for each class, the constant <code>g = α^(−j3)</code> is written as a 4×4 bit matrix (columns <code>α^r·g</code>), so <code>S_rot</code> bit q is an XOR of some <code>S</code> bits. Wiring only when <code>j3 = 0</code>.</li>
-      <li><b>225 trees:</b> tree <code>(i, i′)</code> reads wire <code>e0 = −(i·j1 + i′·j2)</code> of each class, always the same wire.</li>
-      <li><b>Control:</b> <code>busy</code>, 4-bit <code>cyc</code>, <code>accept = start &amp;&amp; (!busy || last)</code> so a new message can start in the last busy cycle. On accept <code>S</code> loads the sub-message; otherwise it rotates.</li>
-      <li><b>Outputs:</b> <code>slice</code>, <code>slice_idx</code> and <code>slice_valid</code> are registered; <code>done</code> marks slice 14.</li>
-    </ol>
-  </div>
-
-  <div class="fn" id="g_asm"><h3>generate_tm_asm_rtl(m, out_path)</h3>
-    <p>Wraps the TM core to give a full codeword. <code>cw_sr</code> has 225 groups of 15 bits; group g shifts in <code>slice[g]</code> whenever <code>slice_valid</code> is high, so after 15 slices bit <code>g·15 + c</code> holds point <code>(i, i′, c)</code>, which is already the flat codeword order. One cycle after the last shift (<code>done_d</code>) the hold register <code>codeword</code> loads, and <code>cw_valid</code> pulses. No LUTs, only flip-flops and an enable.</p>
-  </div>
-
-  <div class="fn" id="g_asm_tb"><h3>generate_tm_testbench(…) · generate_tm_asm_testbench(…)</h3>
-    <p>Clocked testbenches. Both run a gapped pass, a back-to-back pass (one codeword per 15 cycles) and a reset in mid-run, and scramble <code>msg</code> right after <code>start</code> to prove it is latched. The TM bench rebuilds the codeword from slices and also compares with <code>bch3d_enc_opt</code>. The asm bench checks <code>cw_valid</code> is <code>done</code> delayed by two and that <code>codeword</code> holds for 15 cycles.</p>
-  </div>
-
-  <div class="fn key" id="g_tb"><h3>generate_testbench(m, tb_path, vec_dir, num_random, include_all_unit_vectors) → (n_vecs, msg_mem, cw_mem)</h3>
-    <ol>
-      <li>Builds the codeword of every unit vector quickly: a single message bit touches one class, so only that class's 15 point masks matter.</li>
-      <li><code>fast_encode</code> XORs unit codewords together (the code is linear over GF(2)) and is checked against <code>encode_idffft</code> and the null check.</li>
-      <li>Writes <code>msg_*.mem</code> and <code>cw_*.mem</code>: all-0, all-1, all 3,163 unit vectors and random messages. Passing every unit vector proves the circuit correct for all 2^3163 messages.</li>
-      <li>Writes a combinational testbench for designs 1 and 2 with <code>ONLY_BASE</code>/<code>ONLY_OPT</code> switches.</li>
-    </ol>
-  </div>
-
-  <div class="fn" id="g_main"><h3>main()</h3>
-    <p>Parses <code>--n --t --rtl-dir --tb-dir --vec-dir --num-random</code>, then writes in order: baseline, opt, TM core, vectors and testbench, TM and asm testbenches, the two register wrappers and their benches, and the baseline slice and its bench.</p>
-  </div>
-</section>
-
-<section class="file" id="f_v">
-  <div class="filehead"><span class="tag">RTL</span><h2>rtl/bch3d_msg_to_submsg.v</h2><span class="path">Hand-written, parameterised by N, T, PRIM_POLY; all tables computed at elaboration.</span></div>
-  <div class="fn" id="v_field"><h3>log2_np1(n) · alpha_pow(e)</h3>
-    <p><code>log2_np1</code> gives M from N. <code>alpha_pow</code> computes α^e in the polynomial basis by shifting and reducing, the same as the Python table.</p>
-  </div>
-  <div class="fn" id="v_class"><h3>dbl · next_pt · in_null_cube · orbit_size · is_rep · orbit_is_null · count_classes · count_bits</h3>
-    <p>The class search from <code>_build_classes</code>, rewritten as Verilog constant functions on the linear index: one doubling step, orbit length, "is this the smallest member", "does the orbit touch the null cube". <code>count_classes</code> and <code>count_bits</code> give <code>N_CLASS = 798</code> and <code>K_BITS = 3163</code>, which size the ports.</p>
-  </div>
-  <div class="fn" id="v_table"><h3>build_table() · sub_mask(r, d)</h3>
-    <p><code>build_table</code> packs, per class, its bit offset and size into one wide constant. <code>sub_mask</code> is the Verilog version of <code>sub_masks</code>: which of the class's d bits feed bit r of <code>S_k</code>.</p>
-  </div>
-  <div class="fn" id="v_gen"><h3>generate block g_cls / g_bit</h3>
-    <p>For each class and each of the 4 output bits: <code>sub_msg[4k + r] = ^(msg[OFF +: SZ] &amp; MASK)</code>. For size-4 classes this is plain wiring; for size 2 and 1 a few XORs. Synthesises to 0 LUTs for N=15, T=2.</p>
-  </div>
-</section>
-
-<section class="file" id="f_scripts">
-  <div class="filehead"><span class="tag">SCRIPTS</span><h2>scripts/</h2><span class="path">Testbench for the converter, simulation and Vivado flows.</span></div>
-  <div class="fn" id="s_gentb"><h3>gen_tb.py: model(N, T, poly) → (M, K, NC, enc)</h3>
-    <p>A third, independent implementation of the converter in a few lines, used to write <code>tb/tb_bch3d_msg_to_submsg.v</code> for four (N, T) settings with directed and random messages.</p>
-  </div>
-  <div class="fn" id="s_sim"><h3>sim.ps1 -Top -Files [-WorkDir] [-Defines] [-Glbl]</h3>
-    <p>Runs <code>xvlog → xelab → xsim -R</code>. <code>-Glbl</code> elaborates <code>work.glbl</code> for post-route netlists. Exit code 0 only if the log contains <code>PASS</code> and no <code>FAIL</code>/<code>ERROR</code>/<code>MISMATCH</code>.</p>
-  </div>
-  <div class="fn" id="s_ooc"><h3>vivado_ooc.tcl &lt;top&gt; &lt;part&gt; &lt;flatten&gt; &lt;out_dir&gt; &lt;files…&gt;</h3>
-    <p>Out-of-context synthesis only: utilisation reports, a LUT-cell summary line, an optional pre-route timing report (<code>CLOCK_PERIOD_NS</code>) and an optional functional netlist (<code>WRITE_FUNCSIM=1</code>).</p>
-  </div>
-  <div class="fn" id="s_pnr"><h3>vivado_pnr.tcl &lt;top&gt; &lt;part&gt; &lt;period&gt; &lt;flatten&gt; &lt;out_dir&gt; &lt;files…&gt;</h3>
-    <p>Synthesis, <code>create_clock</code>, 20% input/output delays, <code>opt_design</code>, <code>place_design</code>, <code>route_design</code> (no <code>phys_opt_design</code>: it crashed Vivado on the 4 ns run). Writes timing, critical-path, utilisation, fanout, route-status, power, congestion and clock reports, a routed checkpoint, an optional routed netlist (<code>WRITE_TIMESIM=1</code>), and prints <code>PNR_SUMMARY</code> with WNS and WHS.</p>
-  </div>
+<section id="scripts">
+<h2>scripts/</h2>
+<div class="fn"><h3>gen_tb.py</h3><p>A self-contained re-derivation of <code>msg_to_submsg</code>, with its own α powers, orbit walk and null test. Its <code>enc</code> packs bits as S ^= α<sup>i·step</sup>. It writes one testbench that instantiates the Verilog module for 4 configurations, (15,2), (15,1), (7,1) and (7,2), with 5 messages each. This is a check of the Verilog constant functions that doesn't depend on <code>bch3d.py</code>.</p></div>
+<div class="fn"><h3>sim.ps1</h3><p>It runs <code>xvlog → xelab → xsim -R</code> in a work directory, with <code>-Glbl</code> for netlist simulation. It exits 0 only if the log contains PASS and no FAIL or ERROR.</p></div>
+<div class="fn"><h3>vivado_ooc.tcl and vivado_pnr.tcl</h3><p><code>vivado_ooc.tcl</code> runs out-of-context synthesis with the chosen <code>-flatten_hierarchy</code> mode and reports utilisation. <code>vivado_pnr.tcl</code> runs synthesis, then <code>create_clock</code> on <code>clk</code>, then input and output delays of 20% of the period on every port. It then runs <code>opt_design → place_design → route_design</code> (no phys_opt). It writes the timing summary, the 3 worst paths, flat and hierarchical utilisation, high-fanout nets, route status, vectorless power, congestion analysis, clock utilisation and a routed checkpoint, plus an optional funcsim netlist when <code>WRITE_TIMESIM=1</code>. The last line it prints is <code>PNR_SUMMARY: … WNS=… WHS=…</code>, which the background monitor greps for.</p></div>
 </section>
 </main>
 </div>
